@@ -780,6 +780,15 @@ export class Player {
 
     movePortalAction(selectedPiece, newLocation) {
         console.log("Portal entered");
+        selectedPiece.curLocation.pieceExit();
+        let newX = newLocation.x;
+        let newY = newLocation.y;
+        if(newLocation.z == 0) {
+            let newBoard = newLocation.getBoard().getGame().topBoard;
+            newLocation = newBoard.getSquare(newX, newY);
+        } else {
+            let newBoard = newLocation.getBoarD
+        }
     }
 
     capturePortalAction(selectedPiece, newLocation) {
