@@ -124,6 +124,8 @@ export class Game {
         }
         if(piece == 1) {
             this.pieceToPlace = new Pawn(curBoard.getSquare(x,y), color);
+        } else if (piece == 2) {
+            this.pieceToPlace = new Castle(curBoard.getSquare(x,y), color);
         }
         curBoard.getSquare(x,y).pieceEntry(this.pieceToPlace);
         console.log(`${this.pieceToPlace.printPiece()} placed at ${x},${y},${z}`);
@@ -245,6 +247,75 @@ export class Pawn extends Piece {
             console.log(move.getInfo());
         })
         return [this.moves,this.captures];
+    }
+}
+
+export class Castle extends Piece {
+    constructor(square, color) {
+        super(2, square, color);
+    }
+
+    validMoves() {
+        this.currentSquare = this.curLocation;
+        this.currentZ = this.currentSquare.z;
+        this.curBoard = this.currentSquare.getBoard();
+
+        this.moves = [];
+        this.captures = [];
+        this.currentX = this.currentSquare.x;
+        this.currentY = this.currentSquare.y;
+        //determine castle travel direction
+        //can travel up and down as long as you dont hit a piece;
+        let northOffset = -1;
+        let north = this.curBoard.getSquare(this.currentX + northOffset, this.currentY);
+        while(north && north.getPiece() == 0) {
+            this.moves.push(north);
+            northOffset--;
+            north = this.curBoard.getSquare(this.currentX + northOffset, this.currentY);
+        }
+        if(north && north.getPiece() != 0 && north.getPiece().color != this.color) {
+            this.captures.push(north);
+        }
+        let southOffset = 1;
+        let south = this.curBoard.getSquare(this.currentX + southOffset, this.currentY);
+        while(south && south.getPiece() == 0) {
+            this.moves.push(south);
+            southOffset++;
+            south = this.curBoard.getSquare(this.currentX + southOffset, this.currentY);
+        }
+        if(south && south.getPiece() != 0 && south.getPiece().color != this.color) {
+            this.captures.push(south);
+        }
+        let westOffset = -1;
+        let west = this.curBoard.getSquare(this.currentX, this.currentY + westOffset);
+        while(west && west.getPiece() == 0) {
+            this.moves.push(west);
+            westOffset--;
+            west = this.curBoard.getSquare(this.currentX, this.currentY + westOffset);
+        }
+        if(west && west.getPiece() != 0 && west.getPiece().color != this.color) {
+            this.captures.push(west);
+        }
+        let eastOffset = 1;
+        let east = this.curBoard.getSquare(this.currentX, this.currentY + eastOffset);
+        while(east && east.getPiece() == 0) {
+            this.moves.push(east);
+            eastOffset++;
+            east = this.curBoard.getSquare(this.currentX, this.currentY + eastOffset);
+        }
+        if(east && east.getPiece() != 1 && east.getPiece().color != this.color) {
+            this.captures.push(east);
+        }
+        
+        console.log("valid moves: ");
+        this.moves.forEach(move => {
+            console.log(move.getInfo());
+        })
+        console.log("valid captures: ");
+        this.captures.forEach(move => {
+            console.log(move.getInfo());
+        })
+        return [this.moves, this.captures];
     }
 }
 
