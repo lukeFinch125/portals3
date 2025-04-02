@@ -8,6 +8,7 @@ export class Square {
         this.board = board;
         this.pieceOnSquare = 0;
         this.isPortal = false;
+        this.portalisActive = false;
     }
 
     /*piece on square logic:
@@ -20,6 +21,10 @@ export class Square {
     6 = queen
     7 = king
     */
+
+    isPortal() {
+        return this.isPortal;
+    }
 
     getBoard() {
         return this.board;
@@ -45,11 +50,14 @@ export class Square {
     }
 
     getInfoForBoard() {
+        if (this.isPortal) {
+            return chalk.hex('#FFC0CB')('0');
+        }
         if (this.pieceOnSquare && typeof this.pieceOnSquare === "object" && typeof this.pieceOnSquare.printPiece === "function") {
-          return this.pieceOnSquare.printPiece();
+            return this.pieceOnSquare.printPiece();
         }
         return `${this.pieceOnSquare}`;
-      }
+    }
 }
 
 export class Board {
@@ -69,6 +77,14 @@ export class Board {
 
     getGame() {
         return this.game;
+    }
+
+    addPortals() {
+        this.boardArray[1][1].isPortal = true;
+        this.boardArray[1][1].portalisActive = true;
+        this.boardArray[5][5].isPortal = true;
+        this.boardArray[5][5].portalisActive = true;
+
     }
 
     getSquare(x,y) {
@@ -739,18 +755,34 @@ export class Player {
     }
 
     moveAction(selectedPiece, newLocation) {
+        if(newLocation.isPortal()) {
+            movePortalAction(selectedPiece, newLocation);
+        } else {
         selectedPiece.curLocation.pieceExit();
         selectedPiece.curLocation = newLocation;
         newLocation.pieceEntry(selectedPiece);
         console.log(`moved to: ${newLocation.getInfo()}`);
+        }
     }
 
     captureAction(selectedPiece, newLocation) {
-        selectedPiece.curLocation.pieceExit();
-        let pieceCaptured = newLocation.getPiece();
-        pieceCaptured.pieceCaptured();
-        selectedPiece.curLocation = newLocation;
-        newLocation.pieceEntry(selectedPiece);
-        console.log(`${selectedPiece.printPiece()} captured ${pieceCaptured.printPiece()}`);
+        if(newLocation.isPortal()) {
+            capturePortalAction();
+        } else {
+            selectedPiece.curLocation.pieceExit();
+            let pieceCaptured = newLocation.getPiece();
+            pieceCaptured.pieceCaptured();
+            selectedPiece.curLocation = newLocation;
+            newLocation.pieceEntry(selectedPiece);
+            console.log(`${selectedPiece.printPiece()} captured ${pieceCaptured.printPiece()}`);
+        }
+    }
+
+    movePortalAction(selectedPiece, newLocation) {
+        console.log("Portal entered");
+    }
+
+    capturePortalAction(selectedPiece, newLocation) {
+        console.log("portal entered, piece killed");
     }
 }

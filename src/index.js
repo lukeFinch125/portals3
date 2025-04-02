@@ -2,6 +2,8 @@ import { Square, Board, Game } from "./gameLogic";
 
 const game = new Game();
 game.startGame();
+game.topBoard.addPortals();
+game.bottomBoard.addPortals();
 
 
 
