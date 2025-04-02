@@ -115,6 +115,56 @@ export class Game {
 
     startGame() {
         console.log("Game starting");
+        //place pawns
+        this.placePiece(6,3,0,1,0);
+        this.placePiece(5,2,0,1,0);
+        this.placePiece(4,1,0,1,0);
+        this.placePiece(3,0,0,1,0);
+
+        this.placePiece(0,3,0,1,1);
+        this.placePiece(1,4,0,1,1);
+        this.placePiece(2,5,0,1,1);
+        this.placePiece(3,6,0,1,1);
+
+        this.placePiece(6,3,1,1,1);
+        this.placePiece(5,2,1,1,1);
+        this.placePiece(4,1,1,1,1);
+        this.placePiece(3,0,1,1,1);
+        
+        this.placePiece(0,3,1,1,0);
+        this.placePiece(1,4,1,1,0);
+        this.placePiece(2,5,1,1,0);
+        this.placePiece(3,6,1,1,0);
+
+        //place kings
+        this.placePiece(6,0,0,7,0);
+        this.placePiece(0,6,1,7,0);
+        this.placePiece(0,6,0,7,1);
+        this.placePiece(6,0,1,7,1);
+
+        //place queens
+        this.placePiece(0,5,1,6,0);
+        this.placePiece(5,0,0,6,0);
+        this.placePiece(5,0,1,6,1);
+        this.placePiece(0,5,0,6,1);
+
+        //places bishops
+        this.placePiece(1,6,1,3,0);
+        this.placePiece(6,1,0,3,0);
+        this.placePiece(6,1,1,3,1);
+        this.placePiece(1,6,0,3,1);
+
+        //places castle
+        this.placePiece(1,5,1,2,0);
+        this.placePiece(5,1,0,2,0);
+        this.placePiece(5,1,1,2,1);
+        this.placePiece(1,5,0,2,1);
+
+        //places knights
+        this.placePiece(0,4,1,4,0);
+        this.placePiece(4,0,0,4,0);
+        this.placePiece(4,0,1,4,1);
+        this.placePiece(0,4,0,4,1);
     }
     
     placePiece(x,y,z,piece, color) {
@@ -132,9 +182,38 @@ export class Game {
             this.pieceToPlace = new Knight(curBoard.getSquare(x,y), color);
         } else if (piece == 6) {
             this.pieceToPlace = new Queen(curBoard.getSquare(x,y), color);
+        } else if (piece == 7) {
+            this.pieceToPlace = new King(curBoard.getSquare(x,y), color);
         }
         curBoard.getSquare(x,y).pieceEntry(this.pieceToPlace);
         console.log(`${this.pieceToPlace.printPiece()} placed at ${x},${y},${z}`);
+    }
+
+    checkKingCapture() {
+        // Filter the captured pieces to only include kings (pieceNumber 7)
+        const capturedKings = this.capturedPieces.filter(piece => piece.pieceNumber === 7);
+        
+        // Count kings by color
+        const kingCountByColor = { white: 0, black: 0 };
+        capturedKings.forEach(king => {
+            if (king.color === 0) {
+                kingCountByColor.white++;
+            } else if (king.color === 1) {
+                kingCountByColor.black++;
+            }
+        });
+        
+        // Check if either side has lost both kings
+        if (kingCountByColor.white >= 2) {
+            console.log("White's kings have been captured. Black wins!");
+            return { winner: "black", reason: "White's two kings captured" };
+        } else if (kingCountByColor.black >= 2) {
+            console.log("Black's kings have been captured. White wins!");
+            return { winner: "white", reason: "Black's two kings captured" };
+        } else {
+            console.log("The game continues. Not enough kings captured.");
+            return null;
+        }
     }
 }
 
@@ -566,6 +645,55 @@ export class Queen extends Piece {
             this.captures.push(east);
         }
 
+        console.log("valid moves: ");
+        this.moves.forEach(move => {
+            console.log(move.getInfo());
+        })
+        console.log("valid captures: ");
+        this.captures.forEach(move => {
+            console.log(move.getInfo());
+        })
+        return [this.moves, this.captures];
+    }
+}
+
+export class King extends Piece {
+    constructor(square, color) {
+        super(7, square, color);
+    }
+    validMoves() {
+        this.currentSquare = this.curLocation;
+        this.currentZ = this.currentSquare.z;
+        this.curBoard = this.currentSquare.getBoard();
+
+        this.temp = [];
+        this.moves = [];
+        this.captures = [];
+        this.currentX = this.currentSquare.x;
+        this.currentY = this.currentSquare.y;
+        let firstMovement = this.curBoard.getSquare(this.currentX + 1, this.currentY);
+        let secondMovement = this.curBoard.getSquare(this.currentX + 1, this.currentY + 1);
+        let thirdMovement = this.curBoard.getSquare(this.currentX, this.currentY + 1);
+        let fourthMovement = this.curBoard.getSquare(this.currentX, this.currentY - 1);
+        let fifthMovement = this.curBoard.getSquare(this.currentX - 1, this.currentY - 1);
+        let sixthMovement = this.curBoard.getSquare(this.currentX - 1, this.currentY);
+        let sevenMovement = this.curBoard.getSquare(this.currentX - 1, this.currentY + 1);
+        let eightMovement = this.curBoard.getSquare(this.currentX + 1, this.currentY - 2);
+        this.temp.push(firstMovement);
+        this.temp.push(secondMovement);
+        this.temp.push(thirdMovement);
+        this.temp.push(fourthMovement);
+        this.temp.push(fifthMovement);
+        this.temp.push(sixthMovement);
+        this.temp.push(sevenMovement);
+        this.temp.push(eightMovement);
+        this.temp.forEach(move => {
+            if(move && move.getPiece() == 0) {
+                this.moves.push(move);
+            } else if(move && move.getPiece() != 0 && move.getPiece().color != this.color) {
+                this.captures.push(move);
+            }
+        })
         console.log("valid moves: ");
         this.moves.forEach(move => {
             console.log(move.getInfo());
