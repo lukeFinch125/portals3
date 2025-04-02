@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 
 export class Square {
     constructor(x, y, z, board) {
@@ -141,7 +142,11 @@ export class Piece {
     }
 
     printPiece() {
-        return this.pieceNumber;
+        if(this.color === 0) {
+            return chalk.blue(this.pieceNumber);
+        } else {
+            return chalk.red(this.pieceNumber);
+        }
     }
 
     getCurLocation() {
@@ -169,7 +174,7 @@ export class Pawn extends Piece {
         this.currentX = this.currentSquare.x;
         this.currentY = this.currentSquare.y;
         //determine pawn travel direction
-        if((this.z === 0 && this.color === 0) || (this.z === 1 && this.color === 1)) {
+        if((this.curLocation.z === 0 && this.color === 0) || (this.curLocation.z === 1 && this.color === 1)) {
             //pawns travel NE
             //pawn travels north
             const north = this.curBoard.getSquare(this.currentX - 1, this.currentY);
