@@ -38,7 +38,10 @@ export class Square {
     }
 
     getInfo() {
-        return `x: ${this.x} y: ${this.y} z: ${this.z} piece: ${this.pieceOnSquare}`;
+        const pieceInfo = (this.pieceOnSquare && typeof this.pieceOnSquare === "object")
+            ? this.pieceOnSquare.pieceNumber
+            : this.pieceOnSquare;
+        return `x: ${this.x} y: ${this.y} z: ${this.z} piece: ${pieceInfo}`;
     }
 
     getInfoForBoard() {
@@ -50,8 +53,9 @@ export class Square {
 }
 
 export class Board {
-    constructor(z) {
+    constructor(z, game) {
         this.z = z;
+        this.game = game;
         //z = 0; board is on the bottom, SW contains white troops
         //z = 1; board is on the top, SW contains black troops
         const rows = 7;
@@ -61,6 +65,10 @@ export class Board {
                 new Square(row, col, z, this)
             )
         );
+    }
+
+    getGame() {
+        return this.game;
     }
 
     getSquare(x,y) {
@@ -90,8 +98,8 @@ export class Board {
 
 export class Game {
     constructor() {
-        this.topBoard = new Board(1); //SW contains black troops
-        this.bottomBoard = new Board(0); //SW contains white troops
+        this.topBoard = new Board(1, this); //SW contains black troops
+        this.bottomBoard = new Board(0, this); //SW contains white troops
         this.capturedPieces = [];
         this.curPlayer = 0; //0 = white, 1 = black
         this.player1 = new Player("Luke", 0);
@@ -152,6 +160,12 @@ export class Piece {
     getCurLocation() {
         return this.curLocation.getInfo();
     }
+
+    pieceCaptured() {
+        this.status = 1; //piece died;
+        this.curLocation.getBoard().getGame().capturedPieces.push(this);
+        console.log(this.curLocation.getBoard().getGame().capturedPieces);
+    }
 }
 
 /*
@@ -171,6 +185,7 @@ export class Pawn extends Piece {
         this.curBoard = this.currentSquare.getBoard();
         
         this.moves = [];
+        this.captures = [];
         this.currentX = this.currentSquare.x;
         this.currentY = this.currentSquare.y;
         //determine pawn travel direction
@@ -178,39 +193,59 @@ export class Pawn extends Piece {
             //pawns travel NE
             //pawn travels north
             const north = this.curBoard.getSquare(this.currentX - 1, this.currentY);
-            if (north) {
+            if (north && north.getPiece() == 0) {
                 this.moves.push(north);
+            }
+            if(north && north.getPiece() != 0 && north.getPiece().color !== this.color) {
+                this.captures.push(north);
             }
             //pawn travels east
             const east = this.curBoard.getSquare(this.currentX, this.currentY + 1);
-            if(east) {
+            if(east && east.getPiece() == 0) {
                 this.moves.push(east);
+            }
+            if(east && east.getPiece() != 0 && east.getPiece().color !== this.color) {
+                this.captures.push(east);
             }
             //pawn travels NE
             const northEast = this.curBoard.getSquare(this.currentX - 1, this.currentY + 1);
-            if(northEast) {
+            if(northEast && northEast.getPiece() == 0) {
                 this.moves.push(northEast);
             }
         } else {
             //pawns travel SW
             //pawn travels S
             const south = this.curBoard.getSquare(this.currentX + 1, this.currentY);
-            if(south) {
+            if(south && south.getPiece() == 0) {
                 this.moves.push(south);
+            }
+            if(south && south.getPiece() != 0 && south.getPiece().color !== this.color) {
+                this.captures.push(south);
             }
             //pawn travels W
             const west = this.curBoard.getSquare(this.currentX, this.currentY - 1);
-            if(west) {
+            if(west && west.getPiece() == 0) {
                 this.moves.push(west);
+            }
+            if(west && west.getPiece() != 0 && west.getPiece().color !== this.color) {
+                this.captures.push(west);
             }
             //pawn travel SW
             const southWest = this.curBoard.getSquare(this.currentX + 1, this.currentY - 1);
-            if(southWest) {
+            if(southWest && southWest.getPiece() == 0) {
                 this.moves.push(southWest);
             }
         }
-        return this.moves;
-    } 
+        console.log("Valid moves: ");
+        this.moves.forEach(move => {
+            console.log(move.getInfo());
+        })
+        console.log("valid captures: ");
+        this.captures.forEach(move => {
+            console.log(move.getInfo());
+        })
+        return [this.moves,this.captures];
+    }
 }
 
 export class Player {
@@ -226,16 +261,23 @@ export class Player {
             console.log("Please select your piece");
             return;
         }
-        this.moves = selectedPiece.validMoves();
+        const [moves, captures] = selectedPiece.validMoves();
 
-        const isValid = this.moves.some(
+        const isValidMove = moves.some(
             (move) => move.x === newLocation.x && move.y === newLocation.y && move.z === newLocation.z
           );
-          if (isValid) {
+
+        const isValidCapture = captures.some(
+            (move) => move.x === newLocation.x && move.y === newLocation.y && move.z === newLocation.z
+        );
+          
+          if (isValidMove) {
             this.moveAction(selectedPiece, newLocation);
+          } else if(isValidCapture) {
+            this.captureAction(selectedPiece, newLocation);
           } else {
-            console.log("Not valid move");
-          }          
+            console.log("not a valid move or capture");
+          }         
     }
 
     moveAction(selectedPiece, newLocation) {
@@ -243,5 +285,14 @@ export class Player {
         selectedPiece.curLocation = newLocation;
         newLocation.pieceEntry(selectedPiece);
         console.log(`moved to: ${newLocation.getInfo()}`);
+    }
+
+    captureAction(selectedPiece, newLocation) {
+        selectedPiece.curLocation.pieceExit();
+        let pieceCaptured = newLocation.getPiece();
+        pieceCaptured.pieceCaptured();
+        selectedPiece.curLocation = newLocation;
+        newLocation.pieceEntry(selectedPiece);
+        console.log(`${selectedPiece.printPiece()} captured ${pieceCaptured.printPiece()}`);
     }
 }
