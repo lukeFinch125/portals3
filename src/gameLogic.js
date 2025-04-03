@@ -22,7 +22,7 @@ export class Square {
     7 = king
     */
 
-    isPortal() {
+    getPortal() {
         return this.isPortal;
     }
 
@@ -50,9 +50,12 @@ export class Square {
     }
 
     getInfoForBoard() {
-        if (this.isPortal) {
+        if (this.getPortal() && this.pieceOnSquare && typeof this.pieceOnSquare === "object" && typeof this.pieceOnSquare.printPiece === "function") {
+            return chalk.hex('#FFC0CB')(this.pieceOnSquare.printPiece());
+        } else if (this.getPortal()) {
             return chalk.hex('#FFC0CB')('0');
         }
+
         if (this.pieceOnSquare && typeof this.pieceOnSquare === "object" && typeof this.pieceOnSquare.printPiece === "function") {
             return this.pieceOnSquare.printPiece();
         }
@@ -132,6 +135,7 @@ export class Game {
     startGame() {
         console.log("Game starting");
         //place pawns
+        /*
         this.placePiece(6,3,0,1,0);
         this.placePiece(5,2,0,1,0);
         this.placePiece(4,1,0,1,0);
@@ -181,6 +185,7 @@ export class Game {
         this.placePiece(4,0,0,4,0);
         this.placePiece(4,0,1,4,1);
         this.placePiece(0,4,0,4,1);
+        */
     }
     
     placePiece(x,y,z,piece, color) {
@@ -404,7 +409,7 @@ export class Castle extends Piece {
             eastOffset++;
             east = this.curBoard.getSquare(this.currentX, this.currentY + eastOffset);
         }
-        if(east && east.getPiece() != 1 && east.getPiece().color != this.color) {
+        if(east && east.getPiece() != 0 && east.getPiece().color != this.color) {
             this.captures.push(east);
         }
         
@@ -657,7 +662,7 @@ export class Queen extends Piece {
             eastOffset++;
             east = this.curBoard.getSquare(this.currentX, this.currentY + eastOffset);
         }
-        if(east && east.getPiece() != 1 && east.getPiece().color != this.color) {
+        if(east && east.getPiece() != 0 && east.getPiece().color != this.color) {
             this.captures.push(east);
         }
 
@@ -694,7 +699,7 @@ export class King extends Piece {
         let fifthMovement = this.curBoard.getSquare(this.currentX - 1, this.currentY - 1);
         let sixthMovement = this.curBoard.getSquare(this.currentX - 1, this.currentY);
         let sevenMovement = this.curBoard.getSquare(this.currentX - 1, this.currentY + 1);
-        let eightMovement = this.curBoard.getSquare(this.currentX + 1, this.currentY - 2);
+        let eightMovement = this.curBoard.getSquare(this.currentX + 1, this.currentY - 1);
         this.temp.push(firstMovement);
         this.temp.push(secondMovement);
         this.temp.push(thirdMovement);
@@ -755,8 +760,8 @@ export class Player {
     }
 
     moveAction(selectedPiece, newLocation) {
-        if(newLocation.isPortal()) {
-            movePortalAction(selectedPiece, newLocation);
+        if(newLocation.getPortal()) {
+            this.movePortalAction(selectedPiece, newLocation);
         } else {
         selectedPiece.curLocation.pieceExit();
         selectedPiece.curLocation = newLocation;
@@ -766,8 +771,8 @@ export class Player {
     }
 
     captureAction(selectedPiece, newLocation) {
-        if(newLocation.isPortal()) {
-            capturePortalAction();
+        if(newLocation.getPortal()) {
+            this.capturePortalAction(selectedPiece, newLocation);
         } else {
             selectedPiece.curLocation.pieceExit();
             let pieceCaptured = newLocation.getPiece();
@@ -787,11 +792,50 @@ export class Player {
             let newBoard = newLocation.getBoard().getGame().topBoard;
             newLocation = newBoard.getSquare(newX, newY);
         } else {
-            let newBoard = newLocation.getBoarD
+            let newBoard = newLocation.getBoard().getGame().bottomBoard;
+            newLocation = newBoard.getSquare(newX, newY);
+        }
+        if(newLocation.getPiece() != 0) {
+            console.log("Killing piece on other side of portal");
+            let pieceCaptured = newLocation.getPiece();
+            pieceCaptured.pieceCaptured();
+            selectedPiece.curLocation = newLocation;
+            newLocation.pieceExit();
+            newLocation.pieceEntry(selectedPiece);
+        } else {
+            selectedPiece.curLocation.pieceExit();
+            selectedPiece.curLocation = newLocation;
+            newLocation.pieceEntry(selectedPiece);
+            console.log(`piece moved through portal to ${newLocation.getInfo()}`);
         }
     }
 
     capturePortalAction(selectedPiece, newLocation) {
         console.log("portal entered, piece killed");
+        selectedPiece.curLocation.pieceExit();
+        let pieceCaptured = newLocation.getPiece();
+        pieceCaptured.pieceCaptured();
+        let newX = newLocation.x;
+        let newY = newLocation.y;
+        if(newLocation.z == 0) {
+            let newBoard = newLocation.getBoard().getGame().topBoard;
+            newLocation = newBoard.getSquare(newX, newY);
+        } else {
+            let newBoard = newLocation.getBoard().getGame().bottomBoard;
+            newLocation = newBoard.getSquare(newX, newY);
+        }
+        if(newLocation.getPiece() != 1) {
+            console.log("Killing piece on other side of portal");
+            let pieceCaptured = newLocation.getPiece();
+            pieceCaptured.pieceCaptured();
+            selectedPiece.curLocation = newLocation;
+            newLocation.pieceExit();
+            newLocation.pieceEntry(selectedPiece);
+        } else {
+            selectedPiece.curLocation.pieceExit();
+            selectedPiece.curLocation = newLocation;
+            newLocation.pieceEntry(selectedPiece);
+            console.log(`piece moved through portal to ${newLocation.getInfo()}`);
+        }
     }
 }
