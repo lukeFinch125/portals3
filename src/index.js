@@ -29,6 +29,19 @@ export function createBoardDisplay(board, container) {
     container.style.gridTemplateColumns = "repeat(7, 1fr)";
     container.style.gridTemplateRows = "repeat(7, 1fr)";
 
+    let validMoves = [];
+    let validCaptures = [];
+    if (selectedSquare) {
+        const piece = selectedSquare.getPiece();
+        if (piece) {
+          [validMoves, validCaptures] = piece.validMoves();
+        } else {
+          // If no piece is found, clear the selected square.
+          selectedSquare = null;
+        }
+      }
+
+
     for(let row = 0; row < 7; row++) {
         for(let col = 0; col < 7; col++) {
             const cell = document.createElement('div');
@@ -47,6 +60,17 @@ export function createBoardDisplay(board, container) {
             if(curSquare.isPortal) {
                 cell.style.backgroundColor = "purple";
             }
+
+            if (selectedSquare) {
+                // If the square is in valid moves, highlight in green
+                if (validMoves.some(move => move.x === curSquare.x && move.y === curSquare.y && move.z === curSquare.z)) {
+                  cell.style.backgroundColor = "lightgreen";
+                }
+                // If the square is in valid captures, highlight in red (this takes precedence)
+                if (validCaptures.some(move => move.x === curSquare.x && move.y === curSquare.y && move.z === curSquare.z)) {
+                  cell.style.backgroundColor = "lightcoral";
+                }
+              }
 
             const piece = curSquare.getPiece();
             if (piece) {
@@ -96,6 +120,7 @@ export function createBoardDisplay(board, container) {
                         selectedSquare = curSquare;
                         cell.style.backgroundColor = "yellow";
                         console.log("selected piece at:", curSquare.getInfo());
+                        createBoardDisplay(board,container);
                     } else {
                         console.log("Please select your own Piece");
                     }

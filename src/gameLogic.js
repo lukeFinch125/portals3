@@ -461,6 +461,7 @@ export class Castle extends Piece {
         let north = this.curBoard.getSquare(this.currentX + northOffset, this.currentY);
         while(north && north.getPiece() == 0) {
             this.moves.push(north);
+            if(north.isPortal) break;
             northOffset--;
             north = this.curBoard.getSquare(this.currentX + northOffset, this.currentY);
         }
@@ -471,6 +472,7 @@ export class Castle extends Piece {
         let south = this.curBoard.getSquare(this.currentX + southOffset, this.currentY);
         while(south && south.getPiece() == 0) {
             this.moves.push(south);
+            if(south.isPortal) break;
             southOffset++;
             south = this.curBoard.getSquare(this.currentX + southOffset, this.currentY);
         }
@@ -481,6 +483,7 @@ export class Castle extends Piece {
         let west = this.curBoard.getSquare(this.currentX, this.currentY + westOffset);
         while(west && west.getPiece() == 0) {
             this.moves.push(west);
+            if(west.isPortal) break;
             westOffset--;
             west = this.curBoard.getSquare(this.currentX, this.currentY + westOffset);
         }
@@ -491,6 +494,7 @@ export class Castle extends Piece {
         let east = this.curBoard.getSquare(this.currentX, this.currentY + eastOffset);
         while(east && east.getPiece() == 0) {
             this.moves.push(east);
+            if(east.isPortal) break;
             eastOffset++;
             east = this.curBoard.getSquare(this.currentX, this.currentY + eastOffset);
         }
@@ -921,8 +925,8 @@ export class Player {
     
 
     captureAction(selectedPiece, newLocation) {
+        let curGame = selectedPiece.curLocation.getBoard().getGame();
         if(newLocation.getPortal()) {
-            let curGame = selectedPiece.curLocation.getBoard().getGame();
             curGame.checkPortalActivation();
             // Prevent kings, knights, and wizards from capturing through portals.
             if ([7, 4, 5].includes(selectedPiece.pieceNumber)) {
