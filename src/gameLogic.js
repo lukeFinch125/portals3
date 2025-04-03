@@ -254,64 +254,61 @@ export class Game {
     }
 
     checkPortalActivation() {
-        this.bottomBoard.boardArray.forEach(row => {
-            row.forEach(square => {
-                if(square.isPortal && square.portalisActive) {
-                    let wizardFound = false;
-
-                    for(let i = square.x - 2; i <= square.x + 2; i++) {
-                        for(let j = square.y - 2; j <= square.y + 2; j++) {
-                            let neighbor = this.bottomBoard.getSquare(i,j);
-                            if(neighbor) {
-                                let piece = neighbor.getPiece();
-                                if(piece && piece.pieceNumber === 5) {
-                                    wizardFound = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if(wizardFound) break;
+        // Assume boards are 7x7 and portal pairs share the same (x, y) coordinates.
+        for (let i = 0; i < 7; i++) {
+          for (let j = 0; j < 7; j++) {
+            let bottomSquare = this.bottomBoard.getSquare(i, j);
+            let topSquare = this.topBoard.getSquare(i, j);
+            
+            // Process only if both squares are portals.
+            if (bottomSquare.isPortal && topSquare.isPortal) {
+              let wizardFoundBottom = false;
+              let wizardFoundTop = false;
+      
+              // Check for a wizard within radius 2 in the bottom board for bottomSquare.
+              for (let x = bottomSquare.x - 2; x <= bottomSquare.x + 2; x++) {
+                for (let y = bottomSquare.y - 2; y <= bottomSquare.y + 2; y++) {
+                  let neighbor = this.bottomBoard.getSquare(x, y);
+                  if (neighbor) {
+                    let piece = neighbor.getPiece();
+                    if (piece && piece.pieceNumber === 5) { // 5 indicates a wizard.
+                      wizardFoundBottom = true;
+                      break;
                     }
-                    if(wizardFound) {
-                        square.portalisActive = false;
-                        return;
-                    } else {
-                        square.portalisActive = true;
-                        return;
-                    }
+                  }
                 }
-            })
-        })
-        this.topBoard.boardArray.forEach(row => {
-            row.forEach(square => {
-                if(square.isPortal && square.portalisActive) {
-                    let wizardFound = false;
-
-                    for(let i = square.x - 2; i <= square.x + 2; i++) {
-                        for(let j = square.y - 2; j <= square.y + 2; j++) {
-                            let neighbor = this.topBoard.getSquare(i,j);
-                            if(neighbor) {
-                                let piece = neighbor.getPiece();
-                                if(piece && piece.pieceNumber === 5) {
-                                    wizardFound = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if(wizardFound) break;
+                if (wizardFoundBottom) break;
+              }
+      
+              // Check for a wizard within radius 2 in the top board for topSquare.
+              for (let x = topSquare.x - 2; x <= topSquare.x + 2; x++) {
+                for (let y = topSquare.y - 2; y <= topSquare.y + 2; y++) {
+                  let neighbor = this.topBoard.getSquare(x, y);
+                  if (neighbor) {
+                    let piece = neighbor.getPiece();
+                    if (piece && piece.pieceNumber === 5) {
+                      wizardFoundTop = true;
+                      break;
                     }
-                    if(wizardFound) {
-                        square.portalisActive = false;
-                        return;
-                    } else {
-                        square.portalisActive = true;
-                        return;
-                    }
+                  }
                 }
-            })
-        })
-    }
-}
+                if (wizardFoundTop) break;
+              }
+      
+              // If a wizard is found near either portal, both portal squares become inactive.
+              if (wizardFoundBottom || wizardFoundTop) {
+                bottomSquare.portalisActive = false;
+                topSquare.portalisActive = false;
+              } else {
+                // Otherwise, set both portals active.
+                bottomSquare.portalisActive = true;
+                topSquare.portalisActive = true;
+              }
+            }
+          }
+        }
+      }
+}      
 
 
 

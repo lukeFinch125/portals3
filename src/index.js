@@ -3,14 +3,14 @@ import "./index.css";
 import blackBishop from "./svg/blackBishop.svg";
 import blackCastle from "./svg/blackCastle.svg";
 import blackKing from "./svg/blackKing.svg";
-import blackKnight from "./svg/blackKnight.svg";
+import blackKnight from "./svg/blackHorse.svg";
 import blackPawn from "./svg/blackPawn.svg";
 import blackQueen from "./svg/blackQueen.svg";
 import blackWizard from "./svg/blackWizard.svg";
 import whiteBishop from "./svg/whiteBishop.svg";
 import whiteCastle from "./svg/whiteCastle.svg";
 import whiteKing from "./svg/whiteKing.svg";
-import whiteKnight from "./svg/whiteKnight.svg";
+import whiteKnight from "./svg/whiteHorse.svg";
 import whitePawn from "./svg/whitePawn.svg";
 import whiteQueen from "./svg/whiteQueen.svg";
 import whiteWizard from "./svg/whiteWizard.svg";
@@ -58,7 +58,7 @@ export function createBoardDisplay(board, container) {
             cell.style.backgroundColor = "grey";
 
             if(curSquare.isPortal) {
-                cell.style.backgroundColor = "purple";
+                cell.classList.add('rainbow');
             }
 
             if (selectedSquare) {
