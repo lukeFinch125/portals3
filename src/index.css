@@ -1,0 +1,19 @@
+#title {
+    font-size: 5rem;
+    justify-content: center;
+    display: flex;
+    height: 150px;
+}
+
+.boards {
+    display: flex;
+    width: 100vw;
+    justify-content: center;
+    gap: 80px;
+}
+
+.topBoardContainer,
+.bottomBoardContainer {
+    width: 500px;
+    height: 500px;
+}

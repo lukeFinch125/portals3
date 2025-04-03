@@ -1,5 +1,10 @@
 import chalk from 'chalk';
 
+import { createBoardDisplay } from './index.js';
+
+const topBoardDisplay = document.querySelector(".topBoardContainer");
+const bottomBoardDisplay = document.querySelector(".bottomBoardContainer");
+
 export class Square {
     constructor(x, y, z, board) {
         this.x = x;
@@ -50,17 +55,17 @@ export class Square {
     }
 
     getInfoForBoard() {
-        if (this.getPortal() && this.pieceOnSquare && typeof this.pieceOnSquare === "object" && typeof this.pieceOnSquare.printPiece === "function") {
-            return chalk.hex('#FFC0CB')(this.pieceOnSquare.printPiece());
+        if (this.getPortal() && this.pieceOnSquare && typeof this.pieceOnSquare === "object" && typeof this.pieceOnSquare.getInfoForBoardUI === "function") {
+            return `<span class="portal-piece">${this.pieceOnSquare.getInfoForBoardUI()}</span>`;
         } else if (this.getPortal()) {
-            return chalk.hex('#FFC0CB')('0');
+            return `<span class="portal">0</span>`;
         }
-
-        if (this.pieceOnSquare && typeof this.pieceOnSquare === "object" && typeof this.pieceOnSquare.printPiece === "function") {
-            return this.pieceOnSquare.printPiece();
+        
+        if (this.pieceOnSquare && typeof this.pieceOnSquare === "object" && typeof this.pieceOnSquare.getInfoForBoardUI === "function") {
+            return this.pieceOnSquare.getInfoForBoardUI();
         }
         return `${this.pieceOnSquare}`;
-    }
+    }        
 }
 
 export class Board {
@@ -120,9 +125,10 @@ export class Game {
         this.topBoard = new Board(1, this); //SW contains black troops
         this.bottomBoard = new Board(0, this); //SW contains white troops
         this.capturedPieces = [];
-        this.curPlayer = 0; //0 = white, 1 = black
         this.player1 = new Player("Luke", 0);
         this.player2 = new Player("Aaron", 1);
+        this.currentPlayer = this.player1;
+        this.gameActive = true;
     }
 
     printBothBoards() {
@@ -134,8 +140,8 @@ export class Game {
 
     startGame() {
         console.log("Game starting");
+
         //place pawns
-        /*
         this.placePiece(6,3,0,1,0);
         this.placePiece(5,2,0,1,0);
         this.placePiece(4,1,0,1,0);
@@ -185,7 +191,13 @@ export class Game {
         this.placePiece(4,0,0,4,0);
         this.placePiece(4,0,1,4,1);
         this.placePiece(0,4,0,4,1);
-        */
+
+        //place Wizards
+        this.placePiece(6,2,0,5,0);
+        this.placePiece(2,6,0,5,1);
+        this.placePiece(6,2,1,5,1);
+        this.placePiece(2,6,1,5,0);
+
     }
     
     placePiece(x,y,z,piece, color) {
@@ -205,6 +217,8 @@ export class Game {
             this.pieceToPlace = new Queen(curBoard.getSquare(x,y), color);
         } else if (piece == 7) {
             this.pieceToPlace = new King(curBoard.getSquare(x,y), color);
+        } else if (piece == 5) {
+            this.pieceToPlace = new Wizard(curBoard.getSquare(x,y), color);
         }
         curBoard.getSquare(x,y).pieceEntry(this.pieceToPlace);
         console.log(`${this.pieceToPlace.printPiece()} placed at ${x},${y},${z}`);
@@ -227,16 +241,79 @@ export class Game {
         // Check if either side has lost both kings
         if (kingCountByColor.white >= 2) {
             console.log("White's kings have been captured. Black wins!");
+            this.gameActive = false;
             return { winner: "black", reason: "White's two kings captured" };
         } else if (kingCountByColor.black >= 2) {
             console.log("Black's kings have been captured. White wins!");
+            this.gameActive = false;
             return { winner: "white", reason: "Black's two kings captured" };
         } else {
             console.log("The game continues. Not enough kings captured.");
-            return null;
+            this.gameActive = true;
         }
     }
+
+    checkPortalActivation() {
+        this.bottomBoard.boardArray.forEach(row => {
+            row.forEach(square => {
+                if(square.isPortal && square.portalisActive) {
+                    let wizardFound = false;
+
+                    for(let i = square.x - 2; i <= square.x + 2; i++) {
+                        for(let j = square.y - 2; j <= square.y + 2; j++) {
+                            let neighbor = this.bottomBoard.getSquare(i,j);
+                            if(neighbor) {
+                                let piece = neighbor.getPiece();
+                                if(piece && piece.pieceNumber === 5) {
+                                    wizardFound = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if(wizardFound) break;
+                    }
+                    if(wizardFound) {
+                        square.portalisActive = false;
+                        return;
+                    } else {
+                        square.portalisActive = true;
+                        return;
+                    }
+                }
+            })
+        })
+        this.topBoard.boardArray.forEach(row => {
+            row.forEach(square => {
+                if(square.isPortal && square.portalisActive) {
+                    let wizardFound = false;
+
+                    for(let i = square.x - 2; i <= square.x + 2; i++) {
+                        for(let j = square.y - 2; j <= square.y + 2; j++) {
+                            let neighbor = this.topBoard.getSquare(i,j);
+                            if(neighbor) {
+                                let piece = neighbor.getPiece();
+                                if(piece && piece.pieceNumber === 5) {
+                                    wizardFound = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if(wizardFound) break;
+                    }
+                    if(wizardFound) {
+                        square.portalisActive = false;
+                        return;
+                    } else {
+                        square.portalisActive = true;
+                        return;
+                    }
+                }
+            })
+        })
+    }
 }
+
+
 
 
 export class Piece {
@@ -262,6 +339,14 @@ export class Piece {
             return chalk.blue(this.pieceNumber);
         } else {
             return chalk.red(this.pieceNumber);
+        }
+    }
+
+    getInfoForBoardUI() {
+        if(this.color === 0) {
+            return `<span class="piece white">${this.pieceNumber}</span>`;
+        } else {
+            return `<span class="piece black">${this.pieceNumber}</span>`;
         }
     }
 
@@ -727,6 +812,48 @@ export class King extends Piece {
     }
 }
 
+export class Wizard extends Piece {
+    constructor(square, color) {
+        super(5, square, color);
+    }
+    validMoves() {
+        this.currentSquare = this.curLocation;
+        this.currentZ = this.currentSquare.z;
+        this.curBoard = this.currentSquare.getBoard();
+
+        this.temp = [];
+        this.moves = [];
+        this.currentX = this.currentSquare.x;
+        this.currentY = this.currentSquare.y;
+        let firstMovement = this.curBoard.getSquare(this.currentX + 1, this.currentY);
+        let secondMovement = this.curBoard.getSquare(this.currentX + 1, this.currentY + 1);
+        let thirdMovement = this.curBoard.getSquare(this.currentX, this.currentY + 1);
+        let fourthMovement = this.curBoard.getSquare(this.currentX, this.currentY - 1);
+        let fifthMovement = this.curBoard.getSquare(this.currentX - 1, this.currentY - 1);
+        let sixthMovement = this.curBoard.getSquare(this.currentX - 1, this.currentY);
+        let sevenMovement = this.curBoard.getSquare(this.currentX - 1, this.currentY + 1);
+        let eightMovement = this.curBoard.getSquare(this.currentX + 1, this.currentY - 1);
+        this.temp.push(firstMovement);
+        this.temp.push(secondMovement);
+        this.temp.push(thirdMovement);
+        this.temp.push(fourthMovement);
+        this.temp.push(fifthMovement);
+        this.temp.push(sixthMovement);
+        this.temp.push(sevenMovement);
+        this.temp.push(eightMovement);
+        this.temp.forEach(move => {
+            if(move && move.getPiece() == 0) {
+                this.moves.push(move);
+            }
+        })
+        console.log("valid moves: ");
+        this.moves.forEach(move => {
+            console.log(move.getInfo());
+        })
+        return [this.moves, []];
+    }
+}
+
 export class Player {
     constructor(name, color) {
         this.name = name;
@@ -756,22 +883,52 @@ export class Player {
             this.captureAction(selectedPiece, newLocation);
           } else {
             console.log("not a valid move or capture");
-          }         
+          }      
     }
 
     moveAction(selectedPiece, newLocation) {
+        let moveSucceeded = false;
+        let curGame = selectedPiece.curLocation.getBoard().getGame();
+        curGame.checkPortalActivation();
+        // Check if the destination is a portal
         if(newLocation.getPortal()) {
-            this.movePortalAction(selectedPiece, newLocation);
+            // Prevent kings (pieceNumber 7), knights (pieceNumber 4), and wizards (pieceNumber 5) from going through portals.
+            if ([7, 4, 5].includes(selectedPiece.pieceNumber)) {
+                console.log(`${selectedPiece.printPiece()} cannot go through portals.`);
+                return;
+            }
+            // Only try the portal move if it's active.
+            if(newLocation.portalisActive) {
+                this.movePortalAction(selectedPiece, newLocation);
+                moveSucceeded = true;
+            } else {
+                console.log("Portal is not active. Try again");
+                return;
+            }
         } else {
-        selectedPiece.curLocation.pieceExit();
-        selectedPiece.curLocation = newLocation;
-        newLocation.pieceEntry(selectedPiece);
-        console.log(`moved to: ${newLocation.getInfo()}`);
+            // Normal move if not a portal square
+            selectedPiece.curLocation.pieceExit();
+            selectedPiece.curLocation = newLocation;
+            newLocation.pieceEntry(selectedPiece);
+            console.log(`moved to: ${newLocation.getInfo()}`);
+            moveSucceeded = true;
+        }
+        
+        if(moveSucceeded) {
+            curGame.currentPlayer = curGame.currentPlayer === curGame.player1 ? curGame.player2 : curGame.player1;
         }
     }
+    
 
     captureAction(selectedPiece, newLocation) {
         if(newLocation.getPortal()) {
+            let curGame = selectedPiece.curLocation.getBoard().getGame();
+            curGame.checkPortalActivation();
+            // Prevent kings, knights, and wizards from capturing through portals.
+            if ([7, 4, 5].includes(selectedPiece.pieceNumber)) {
+                console.log(`${selectedPiece.printPiece()} cannot capture through portals.`);
+                return;
+            }
             this.capturePortalAction(selectedPiece, newLocation);
         } else {
             selectedPiece.curLocation.pieceExit();
@@ -781,9 +938,13 @@ export class Player {
             newLocation.pieceEntry(selectedPiece);
             console.log(`${selectedPiece.printPiece()} captured ${pieceCaptured.printPiece()}`);
         }
+        curGame.currentPlayer = curGame.currentPlayer === curGame.player1 ? curGame.player2 : curGame.player1;
     }
+    
 
     movePortalAction(selectedPiece, newLocation) {
+        let curGame = selectedPiece.curLocation.getBoard().getGame();
+        curGame.checkPortalActivation();
         console.log("Portal entered");
         selectedPiece.curLocation.pieceExit();
         let newX = newLocation.x;
@@ -808,9 +969,13 @@ export class Player {
             newLocation.pieceEntry(selectedPiece);
             console.log(`piece moved through portal to ${newLocation.getInfo()}`);
         }
+        createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().topBoard, topBoardDisplay);
+        createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().bottomBoard, bottomBoardDisplay);
     }
 
     capturePortalAction(selectedPiece, newLocation) {
+        let curGame = selectedPiece.curLocation.getBoard().getGame();
+        curGame.checkPortalActivation();
         console.log("portal entered, piece killed");
         selectedPiece.curLocation.pieceExit();
         let pieceCaptured = newLocation.getPiece();
@@ -837,5 +1002,8 @@ export class Player {
             newLocation.pieceEntry(selectedPiece);
             console.log(`piece moved through portal to ${newLocation.getInfo()}`);
         }
+        createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().topBoard, topBoardDisplay);
+        createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().bottomBoard, bottomBoardDisplay);
+
     }
 }
