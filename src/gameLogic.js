@@ -4,6 +4,32 @@ import { createBoardDisplay } from './index.js';
 
 const topBoardDisplay = document.querySelector(".topBoardContainer");
 const bottomBoardDisplay = document.querySelector(".bottomBoardContainer");
+const log = document.querySelector(".log");
+
+// Save a reference to the original console.log
+const originalConsoleLog = console.log;
+
+// Get reference to the div
+const logDiv = document.querySelector(".log");
+
+// Override console.log
+console.log = function(...args) {
+  // Call the original console.log to still log to the browser console
+  originalConsoleLog.apply(console, args);
+  
+  // Format the message (join the args with a space)
+  const message = args.join(" ");
+  
+  // Create a new paragraph element for this message
+  const p = document.createElement("p");
+  p.textContent = message;
+  
+  // Append the paragraph to the log div
+  logDiv.appendChild(p);
+  
+  // Optionally, scroll to the bottom of the div
+  logDiv.scrollTop = logDiv.scrollHeight;
+};
 
 export class Square {
     constructor(x, y, z, board) {

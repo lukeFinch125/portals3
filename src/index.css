@@ -33,3 +33,9 @@
     animation: rainbow 5s infinite linear;
     opacity: .5;
   }
+
+  .log {
+    height: 300px;
+    border: 1px solid black;
+    overflow: auto;
+  }
