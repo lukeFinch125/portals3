@@ -1,28 +1,38 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portals Multiplayer</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-    <div id = "title">Portals v1.1</div>
+  <!-- Waiting Room View -->
+  <div id="lobbyView">
+    <div id="waitingRoom">
+      <h2>Waiting Room</h2>
+      <button id="matchmakingButton">Join Matchmaking</button>
+      <p id="statusMessage"></p>
+    </div>
+  </div>
+
+  <!-- Game Center View (initially hidden) -->
+  <div id="gameCenterView" style="display: none;">
+    <div id="title">Portals v1.1</div>
     <div class="boards">
-        <div class="topBoard">
-            <div class="topBoardTitle">Top Board</div>
-            <div class="topBoardContainer">
-
-            </div>
-        </div>
-        <div class="bottomBoard">
-            <div class="bottomBoardTitle">Bottom Board</div>
-            <div class="bottomBoardContainer">
-
-            </div>
-        </div>
+      <div class="topBoard">
+        <div class="topBoardTitle">Top Board</div>
+        <div class="topBoardContainer">topContainer</div>
+      </div>
+      <div class="bottomBoard">
+        <div class="bottomBoardTitle">Bottom Board</div>
+        <div class="bottomBoardContainer">bottomContainer</div>
+      </div>
     </div>
-    <div class="log">
-        
-    </div>
+    <div class="log"></div>
+  </div>
+
+  <script src="index.js"></script>
 </body>
 </html>

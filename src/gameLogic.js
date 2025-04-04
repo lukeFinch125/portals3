@@ -1,4 +1,5 @@
 import { Piece, Pawn, Castle, Bishop, Knight, Queen, King, Wizard } from "./pieceLogic.js";
+import "./index.css";
 
 import blackBishop from "./svg/blackBishop.svg";
 import blackCastle from "./svg/blackCastle.svg";
@@ -17,13 +18,26 @@ import whiteWizard from "./svg/whiteWizard.svg";
 
 const topBoardDisplay = document.querySelector(".topBoardContainer");
 const bottomBoardDisplay = document.querySelector(".bottomBoardContainer");
-const log = document.querySelector(".log");
+
+const logDiv = document.querySelector(".log");
+if (logDiv) {
+  // Override console.log
+  const originalConsoleLog = console.log;
+  console.log = function (...args) {
+    originalConsoleLog.apply(console, args);
+    const message = args.join(" ");
+    const p = document.createElement("p");
+    p.textContent = message;
+    logDiv.appendChild(p);
+    logDiv.scrollTop = logDiv.scrollHeight;
+  };
+} else {
+  console.warn("Log div not found.");
+}
+
 
 // Save a reference to the original console.log
 const originalConsoleLog = console.log;
-
-// Get reference to the div
-const logDiv = document.querySelector(".log");
 
 // Override console.log
 console.log = function(...args) {
@@ -160,12 +174,12 @@ export class Board {
 }
 
 export class Game {
-    constructor() {
+    constructor(player1ID, player2ID) {
         this.topBoard = new Board(1, this); //SW contains black troops
         this.bottomBoard = new Board(0, this); //SW contains white troops
         this.capturedPieces = [];
-        this.player1 = new Player("Luke", 0);
-        this.player2 = new Player("Aaron", 1);
+        this.player1 = new Player(player1ID, 0);
+        this.player2 = new Player(player2ID, 1);
         this.currentPlayer = this.player1;
         this.gameActive = true;
         this.selectedSquare = null;
@@ -180,6 +194,7 @@ export class Game {
     }
 
     createBoardDisplay(board, container) {
+        
             // Clear any existing content
         container.innerHTML = "";
         
@@ -357,6 +372,10 @@ export class Game {
         this.placePiece(6,2,1,5,1);
         this.placePiece(2,6,1,5,0);
 
+        this.topBoard.addPortals();
+        this.bottomBoard.addPortals();
+        this.createBoardDisplay(this.topBoard, topBoardDisplay);
+        this.createBoardDisplay(this.bottomBoard, bottomBoardDisplay);
     }
     
     placePiece(x,y,z,piece, color) {
