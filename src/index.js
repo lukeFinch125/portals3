@@ -18,9 +18,9 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const database = getDatabase(app);
+export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const database = getDatabase(app);
 
 let playerID = null;
 
@@ -92,11 +92,16 @@ onValue(waitingRoomListRef, (snapshot) => {
         const [player1, player2] = playerIDs;
 
         const newGameRef = push(ref(database, "games"));
+        const initialBoardState = {};
+        }
         set(newGameRef, {
             players: {
                 [player1]: waitingPlayers[player1],
                 [player2]: waitingPlayers[player2]
             },
+            boardState: initialBoardState,
+            currentPlayer: "white",
+            moveHistory: {},
             status: "waiting"
         }).then(() => {
             remove(ref(database, `waitingRoom/${player1}`));
@@ -137,7 +142,7 @@ function switchView(view) {
   }
 
 function initiateGame(gameID, player1, player2) {
-    let newGame = new Game(player1, player2);
+    let newGame = new Game(gameID, player1, player2);
 
     console.log(`Game ${gameID} inititated with players: ${player1} and ${player2}`);
     newGame.startGame();

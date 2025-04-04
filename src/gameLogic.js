@@ -1,6 +1,6 @@
-import { Piece, Pawn, Castle, Bishop, Knight, Queen, King, Wizard } from "./pieceLogic.js";
+import { Pawn, Castle, Bishop, Knight, Queen, King, Wizard } from "./pieceLogic.js";
 import "./index.css";
-
+import { app, database } from "./index.js";
 import blackBishop from "./svg/blackBishop.svg";
 import blackCastle from "./svg/blackCastle.svg";
 import blackKing from "./svg/blackKing.svg";
@@ -34,6 +34,16 @@ if (logDiv) {
 } else {
   console.warn("Log div not found.");
 }
+
+let gameID = 0;
+
+onValue(gameStateRef, (snapshot) => {
+  const boardState = snapshot.val();
+  if (boardState) {
+    // Call a function that updates the UI
+    updateBoardUI(boardState);
+  }
+});
 
 
 // Save a reference to the original console.log
@@ -174,7 +184,7 @@ export class Board {
 }
 
 export class Game {
-    constructor(player1ID, player2ID) {
+    constructor(gameID, player1ID, player2ID) {
         this.topBoard = new Board(1, this); //SW contains black troops
         this.bottomBoard = new Board(0, this); //SW contains white troops
         this.capturedPieces = [];
@@ -183,6 +193,76 @@ export class Game {
         this.currentPlayer = this.player1;
         this.gameActive = true;
         this.selectedSquare = null;
+        gameID = gameID;
+    }
+    /**
+     * Update local board state with the JSON received from the server.
+     * @param {Object} serverBoardState - The boardState JSON from the server.
+     * Expected structure:
+     * {
+     *   topBoard: { z: 1, squares: [ [ {x, y, piece, isPortal, portalisActive}, ... ], ... ] },
+     *   bottomBoard: { z: 0, squares: [ [ {x, y, piece, isPortal, portalisActive}, ... ], ... ] }
+     * }
+     */
+
+    updateLocalState(serverBoardState) {
+        serverBoardState.topBoard.squares.forEach((row, rowIndex) => {
+            row.forEach((serverSquare, colIndex) => {
+                const localSquare = this.topBoard.boardArray[rowIndex][colIndex];
+                localSquare.pieceOnSquare = serverSquare.piece;
+                localSquare.isPortal = serverSquare.isPortal;
+                localSquare.portalisActive = serverSquare.portalisActive;
+            });
+        });
+
+        serverBoardState.bottomBoard.squares.forEach((row, rowIndex) => {
+            row.forEach((serverSquare, colIndex) => {
+                const localSquare = this.bottomBoard.boardArray[rowIndex][colIndex];
+                localSquare.pieceOnSquare = serverSquare.piece;
+                localSquare.isPortal = serverSquare.isPortal;
+                localSquare.isPortalisActive = serverSquare.portalisActive;
+            });
+        });
+        console.log("local game state has been synchronized")
+    }
+
+    updateServeState() {
+        const boardState = {
+            topBoard: {
+                z: this.topBoard.z,
+                squares: this.topBoard.boardArray.map(row => 
+                    row.map(square => ({
+                        x: square.x,
+                        y: square.y,
+                        piece: (square.getPiece() && square.getPiece().pieceNumber) || square.getPiece(),
+                        isPortal: square.isPortal,
+                        portalisActive: square.portalisActive
+                    }))
+                )
+            },
+            bottomBoard: {
+                z: this.bottomBoard.z,
+                squares: this.bottomBoard.boardArray.map(row => 
+                    row.map(square => ({
+                        x: square.x,
+                        y: square.y,
+                        piece: (square.getPiece() && square.getPiece().pieceNumber) || square.getPiece(),
+                        isPortal: square.isPortal,
+                        portalisActive: square.portalisActive
+                    }))
+                )
+            }
+        };
+
+        const gameStateRef = ref(database, `games/${gameID}/boardState`);
+
+        return set(gameStateRef, boardState)
+            .then(() => {
+                console.log("Game state updated on server.");
+            })
+            .catch((error) => {
+                console.log("Error updating game state");
+            });
     }
 
 
