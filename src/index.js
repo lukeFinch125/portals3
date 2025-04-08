@@ -22,8 +22,6 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const database = getDatabase(app);
 
-let playerID = null;
-
 const matchmakingButton = document.getElementById("matchmakingButton");
 const statusMessage = document.getElementById("statusMessage");
 const lobbyView = document.getElementById("lobbyView");
@@ -60,91 +58,3 @@ auth.onAuthStateChanged((user) => {
         console.log("User is signed out.");
     }
 });
-
-matchmakingButton.addEventListener("click", () => {
-    if(!playerID) {
-        statusMessage.textContent = "Still signing in...";
-        return;
-    }
-    const waitingRoomRef = ref(database, `waitingRoom/${playerID}`);
-    set(waitingRoomRef, {
-        playerID,
-        joined: Date.now()
-    })
-        .then(() => {
-            statusMessage.textContent = "You are in waiting room. Waiting for an opponent...";
-            console.log("Added to waiting room");
-        })
-        .catch((error) => {
-            console.log("Error joining waiting room: ", error);
-        });
-});
-
-const waitingRoomListRef = ref(database, "waitingRoom");
-onValue(waitingRoomListRef, (snapshot) => {
-    const waitingPlayers = snapshot.val();
-    if (!waitingPlayers) return;
-
-    const playerIDs = Object.keys(waitingPlayers);
-    console.log("Current waiting players: ", playerIDs);
-
-    if(playerIDs.length >= 2) {
-        const [player1, player2] = playerIDs;
-
-        const newGameRef = push(ref(database, "games"));
-        const initialBoardState = {};
-        }
-        set(newGameRef, {
-            players: {
-                [player1]: waitingPlayers[player1],
-                [player2]: waitingPlayers[player2]
-            },
-            boardState: initialBoardState,
-            currentPlayer: "white",
-            moveHistory: {},
-            status: "waiting"
-        }).then(() => {
-            remove(ref(database, `waitingRoom/${player1}`));
-            remove(ref(database, `waitingRoom/${player2}`));
-
-            if(playerID === player1 || playerID === player2) {
-                statusMessage.textContent = "Match found! Starting game...";
-
-                setTimeout(() => {
-                    lobbyView.style.display = "none";
-                    gameCenterView.style.display = "block";
-
-                    switchView("game");
-                    requestAnimationFrame(() => {
-                    initiateGame(newGameRef.key, player1, player2);
-                    });
-                }, 1000);
-            }
-        });
-    }
-});
-
-/**
- * Switches the visible view.
- * @param {string} view - The view to switch to. Either "game" or "waiting".
- */
-function switchView(view) {
-    const lobbyView = document.getElementById("lobbyView");
-    const gameCenterView = document.getElementById("gameCenterView");
-  
-    if (view === "game") {
-      lobbyView.style.display = "none";
-      gameCenterView.style.display = "block";
-    } else if (view === "waiting") {
-      gameCenterView.style.display = "none";
-      lobbyView.style.display = "block";
-    }
-  }
-
-function initiateGame(gameID, player1, player2) {
-    let newGame = new Game(gameID, player1, player2);
-
-    console.log(`Game ${gameID} inititated with players: ${player1} and ${player2}`);
-    newGame.startGame();
-    return newGame;
-}

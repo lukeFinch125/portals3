@@ -19,6 +19,9 @@ import whiteWizard from "./svg/whiteWizard.svg";
 const topBoardDisplay = document.querySelector(".topBoardContainer");
 const bottomBoardDisplay = document.querySelector(".bottomBoardContainer");
 
+let gameID = null;
+let playerID = null;
+
 const logDiv = document.querySelector(".log");
 if (logDiv) {
   // Override console.log
@@ -35,16 +38,27 @@ if (logDiv) {
   console.warn("Log div not found.");
 }
 
-let gameID = 0;
 
-onValue(gameStateRef, (snapshot) => {
-  const boardState = snapshot.val();
-  if (boardState) {
-    // Call a function that updates the UI
-    updateBoardUI(boardState);
+function switchView(view) {
+    const lobbyView = document.getElementById("lobbyView");
+    const gameCenterView = document.getElementById("gameCenterView");
+  
+    if (view === "game") {
+      lobbyView.style.display = "none";
+      gameCenterView.style.display = "block";
+    } else if (view === "waiting") {
+      gameCenterView.style.display = "none";
+      lobbyView.style.display = "block";
+    }
   }
-});
 
+function initiateGame(gameID, player1, player2) {
+    let newGame = new Game(gameID, player1, player2);
+
+    console.log(`Game ${gameID} inititated with players: ${player1} and ${player2}`);
+    newGame.startGame();
+    return newGame;
+}
 
 // Save a reference to the original console.log
 const originalConsoleLog = console.log;
@@ -194,75 +208,6 @@ export class Game {
         this.gameActive = true;
         this.selectedSquare = null;
         gameID = gameID;
-    }
-    /**
-     * Update local board state with the JSON received from the server.
-     * @param {Object} serverBoardState - The boardState JSON from the server.
-     * Expected structure:
-     * {
-     *   topBoard: { z: 1, squares: [ [ {x, y, piece, isPortal, portalisActive}, ... ], ... ] },
-     *   bottomBoard: { z: 0, squares: [ [ {x, y, piece, isPortal, portalisActive}, ... ], ... ] }
-     * }
-     */
-
-    updateLocalState(serverBoardState) {
-        serverBoardState.topBoard.squares.forEach((row, rowIndex) => {
-            row.forEach((serverSquare, colIndex) => {
-                const localSquare = this.topBoard.boardArray[rowIndex][colIndex];
-                localSquare.pieceOnSquare = serverSquare.piece;
-                localSquare.isPortal = serverSquare.isPortal;
-                localSquare.portalisActive = serverSquare.portalisActive;
-            });
-        });
-
-        serverBoardState.bottomBoard.squares.forEach((row, rowIndex) => {
-            row.forEach((serverSquare, colIndex) => {
-                const localSquare = this.bottomBoard.boardArray[rowIndex][colIndex];
-                localSquare.pieceOnSquare = serverSquare.piece;
-                localSquare.isPortal = serverSquare.isPortal;
-                localSquare.isPortalisActive = serverSquare.portalisActive;
-            });
-        });
-        console.log("local game state has been synchronized")
-    }
-
-    updateServeState() {
-        const boardState = {
-            topBoard: {
-                z: this.topBoard.z,
-                squares: this.topBoard.boardArray.map(row => 
-                    row.map(square => ({
-                        x: square.x,
-                        y: square.y,
-                        piece: (square.getPiece() && square.getPiece().pieceNumber) || square.getPiece(),
-                        isPortal: square.isPortal,
-                        portalisActive: square.portalisActive
-                    }))
-                )
-            },
-            bottomBoard: {
-                z: this.bottomBoard.z,
-                squares: this.bottomBoard.boardArray.map(row => 
-                    row.map(square => ({
-                        x: square.x,
-                        y: square.y,
-                        piece: (square.getPiece() && square.getPiece().pieceNumber) || square.getPiece(),
-                        isPortal: square.isPortal,
-                        portalisActive: square.portalisActive
-                    }))
-                )
-            }
-        };
-
-        const gameStateRef = ref(database, `games/${gameID}/boardState`);
-
-        return set(gameStateRef, boardState)
-            .then(() => {
-                console.log("Game state updated on server.");
-            })
-            .catch((error) => {
-                console.log("Error updating game state");
-            });
     }
 
 
