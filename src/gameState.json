@@ -1,0 +1,23 @@
+{
+    "gameId": "YOUR_GAME_ID",
+    "currentPlayer": 0,
+    "bottomBoard": [
+      [null, null, null, {"pieceNumber":1,"color":1}, {"pieceNumber":4,"color":1}, {"pieceNumber":6,"color":1}, {"pieceNumber":7,"color":1}],
+      [null, null, null, null, null, {"pieceNumber":2,"color":1}, {"pieceNumber":3,"color":1}],
+      [null, null, null, null, null, null, {"pieceNumber":5,"color":1}],
+      [{"pieceNumber":1,"color":0}, null, null, null, null, null, null],
+      [{"pieceNumber":4,"color":0}, {"pieceNumber":1,"color":0}, null, null, null, null, null],
+      [{"pieceNumber":6,"color":0}, {"pieceNumber":2,"color":0}, {"pieceNumber":1,"color":0}, null, null, null, null],
+      [{"pieceNumber":7,"color":0}, {"pieceNumber":3,"color":0}, {"pieceNumber":5,"color":0}, {"pieceNumber":1,"color":0}, null, null, null]
+    ],
+    "topBoard": [
+      [null, null, null, {"pieceNumber":1,"color":0}, {"pieceNumber":4,"color":0}, {"pieceNumber":6,"color":0}, {"pieceNumber":7,"color":0}],
+      [null, null, null, null, {"pieceNumber":1,"color":0}, {"pieceNumber":2,"color":0}, {"pieceNumber":3,"color":0}],
+      [null, null, null, null, null, {"pieceNumber":1,"color":0}, {"pieceNumber":5,"color":0}],
+      [{"pieceNumber":1,"color":1}, null, null, null, null, null, {"pieceNumber":1,"color":0}],
+      [{"pieceNumber":4,"color":1}, {"pieceNumber":1,"color":1}, null, null, null, null, null],
+      [{"pieceNumber":6,"color":1}, {"pieceNumber":2,"color":1}, {"pieceNumber":1,"color":1}, null, null, null, null],
+      [{"pieceNumber":7,"color":1}, {"pieceNumber":3,"color":1}, {"pieceNumber":5,"color":1}, {"pieceNumber":1,"color":1}, null, null, null]
+    ]
+  }
+  

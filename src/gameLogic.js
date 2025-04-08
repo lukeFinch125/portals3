@@ -1,6 +1,7 @@
 import { Pawn, Castle, Bishop, Knight, Queen, King, Wizard } from "./pieceLogic.js";
 import "./index.css";
 import { app, database } from "./index.js";
+import { getDatabase, ref, push, set, get, update, onValue } from "firebase/database";
 import blackBishop from "./svg/blackBishop.svg";
 import blackCastle from "./svg/blackCastle.svg";
 import blackKing from "./svg/blackKing.svg";
@@ -16,11 +17,28 @@ import whitePawn from "./svg/whitePawn.svg";
 import whiteQueen from "./svg/whiteQueen.svg";
 import whiteWizard from "./svg/whiteWizard.svg";
 
+import { playerID } from "./index.js";
+
 const topBoardDisplay = document.querySelector(".topBoardContainer");
 const bottomBoardDisplay = document.querySelector(".bottomBoardContainer");
+const statusMessage = document.getElementById("statusMessage");
+const lobbyView = document.getElementById("lobbyView");
+const gameCenterView = document.getElementById("gameCenterView");
+const createGameButton = document.querySelector("#createGame");
+const joinGameButton = document.querySelector("#joinGame");
 
-let gameID = null;
-let playerID = null;
+joinGameButton.addEventListener("click", () => {
+    let newGameID = prompt("Enter game ID");
+    joinGame(newGameID);
+})
+
+createGameButton.addEventListener("click", () => {
+    createGame();
+})
+
+
+
+export let curGame = null;
 
 const logDiv = document.querySelector(".log");
 if (logDiv) {
@@ -51,14 +69,6 @@ function switchView(view) {
       lobbyView.style.display = "block";
     }
   }
-
-function initiateGame(gameID, player1, player2) {
-    let newGame = new Game(gameID, player1, player2);
-
-    console.log(`Game ${gameID} inititated with players: ${player1} and ${player2}`);
-    newGame.startGame();
-    return newGame;
-}
 
 // Save a reference to the original console.log
 const originalConsoleLog = console.log;
@@ -195,6 +205,44 @@ export class Board {
         }
         return toReturn;
     }
+
+    //update local State 
+    async updateLocalState() {
+        const activeGameRef = ref(database, `activeGames/${currentGameID}`);
+        const snap = await get(activeGameRef);
+        if(!snap.exists()) {
+            throw new Error(`game ${currentGameID} not found`);
+        }
+        const state = snap.val();
+        //update players turn
+        console.log(`current player is ${this.currentPlayer}`);
+        this.currentPlayer = state.currentPlayer === this.player1.color ? this.player1 : this.player2;
+        console.log(`current player is now ${this.currentPlayer}`);
+
+        //update boards
+        this.applyBoardState(this.bottomBoard, state.bottomBoard);
+        this.applyBoardState(this.topBoard, state.topBoard);
+        console.log("boards updated");
+
+        this.createBoardDisplay(this.bottomBoard, bottomBoardDisplay);
+        this.createBoardDisplay(this.topBoard, topBoardDisplay);
+    }
+
+    applyBoardState(board, boardStateArray) {
+        for (let x = 0; x < boardStateArray.length; x++) {
+            for (let y = 0; y < boardStateArray.length; y++) {
+                const sq = board.getSquare(x,y);
+                const cell = boardStateArray[x][y];
+
+                const exisiting = sq.getPiece();
+                if (exisiting) sq.pieceExit();
+
+                if (cell) {
+                    curGame.placePiece(x,y, board.z, cell.pieceNumber, cell.color);
+                }
+            }
+        }
+    }
 }
 
 export class Game {
@@ -207,7 +255,8 @@ export class Game {
         this.currentPlayer = this.player1;
         this.gameActive = true;
         this.selectedSquare = null;
-        gameID = gameID;
+        this.gameID = gameID;
+        curGame = this;
     }
 
 
@@ -511,6 +560,8 @@ export class Game {
           }
         }
       }
+
+    
 }      
 
 export class Player {
@@ -521,6 +572,9 @@ export class Player {
     }
 
     attemptMove(selectedPiece, newLocation) {
+        //get game State 
+        //check portal activation
+        //make sure they are the current player
         console.log(`attempt move to: ${newLocation.getInfo()}`);
         if(selectedPiece.color !== this.color) {
             console.log("Please select your piece");
@@ -545,7 +599,7 @@ export class Player {
           }      
     }
 
-    moveAction(selectedPiece, newLocation) {
+    async moveAction(selectedPiece, newLocation) {
         let moveSucceeded = false;
         let curGame = selectedPiece.curLocation.getBoard().getGame();
         curGame.checkPortalActivation();
@@ -575,11 +629,29 @@ export class Player {
         
         if(moveSucceeded) {
             curGame.currentPlayer = curGame.currentPlayer === curGame.player1 ? curGame.player2 : curGame.player1;
+            curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().topBoard, topBoardDisplay);
+            curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().bottomBoard, bottomBoardDisplay);
         }
+        const gameRef = ref(database, `activeGames/${curGame.gameID}`);
+        await update(gameRef, {
+        bottomBoard: curGame.bottomBoard.boardArray.map(row =>
+            row.map(sq => sq.getPiece() 
+            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
+            : null
+            )
+        ),
+        topBoard: curGame.topBoard.boardArray.map(row =>
+            row.map(sq => sq.getPiece() 
+            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
+            : null
+            )
+        ),
+        currentPlayer: curGame.currentPlayer.color
+        });
     }
     
 
-    captureAction(selectedPiece, newLocation) {
+    async captureAction(selectedPiece, newLocation) {
         let curGame = selectedPiece.curLocation.getBoard().getGame();
         if(newLocation.getPortal()) {
             curGame.checkPortalActivation();
@@ -598,10 +670,28 @@ export class Player {
             console.log(`${selectedPiece.printPiece()} captured ${pieceCaptured.printPiece()}`);
         }
         curGame.currentPlayer = curGame.currentPlayer === curGame.player1 ? curGame.player2 : curGame.player1;
+        curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().topBoard, topBoardDisplay);
+        curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().bottomBoard, bottomBoardDisplay);
+        const gameRef = ref(database, `activeGames/${curGame.gameID}`);
+        await update(gameRef, {
+        bottomBoard: curGame.bottomBoard.boardArray.map(row =>
+            row.map(sq => sq.getPiece() 
+            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
+            : null
+            )
+        ),
+        topBoard: curGame.topBoard.boardArray.map(row =>
+            row.map(sq => sq.getPiece() 
+            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
+            : null
+            )
+        ),
+        currentPlayer: curGame.currentPlayer.color
+        });
     }
     
 
-    movePortalAction(selectedPiece, newLocation) {
+    async movePortalAction(selectedPiece, newLocation) {
         let curGame = selectedPiece.curLocation.getBoard().getGame();
         curGame.checkPortalActivation();
         console.log("Portal entered");
@@ -628,11 +718,28 @@ export class Player {
             newLocation.pieceEntry(selectedPiece);
             console.log(`piece moved through portal to ${newLocation.getInfo()}`);
         }
+        curGame.currentPlayer = curGame.currentPlayer === curGame.player1 ? curGame.player2 : curGame.player1;
         curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().topBoard, topBoardDisplay);
         curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().bottomBoard, bottomBoardDisplay);
+        const gameRef = ref(database, `activeGames/${curGame.gameID}`);
+        await update(gameRef, {
+        bottomBoard: curGame.bottomBoard.boardArray.map(row =>
+            row.map(sq => sq.getPiece() 
+            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
+            : null
+            )
+        ),
+        topBoard: curGame.topBoard.boardArray.map(row =>
+            row.map(sq => sq.getPiece() 
+            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
+            : null
+            )
+        ),
+        currentPlayer: curGame.currentPlayer.color
+        });
     }
 
-    capturePortalAction(selectedPiece, newLocation) {
+    async capturePortalAction(selectedPiece, newLocation) {
         let curGame = selectedPiece.curLocation.getBoard().getGame();
         curGame.checkPortalActivation();
         console.log("portal entered, piece killed");
@@ -661,8 +768,239 @@ export class Player {
             newLocation.pieceEntry(selectedPiece);
             console.log(`piece moved through portal to ${newLocation.getInfo()}`);
         }
+        curGame.currentPlayer = curGame.currentPlayer === curGame.player1 ? curGame.player2 : curGame.player1;
         curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().topBoard, topBoardDisplay);
         curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().bottomBoard, bottomBoardDisplay);
-
+        
+        const gameRef = ref(database, `activeGames/${curGame.gameID}`);
+        await update(gameRef, {
+        bottomBoard: curGame.bottomBoard.boardArray.map(row =>
+            row.map(sq => sq.getPiece() 
+            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
+            : null
+            )
+        ),
+        topBoard: curGame.topBoard.boardArray.map(row =>
+            row.map(sq => sq.getPiece() 
+            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
+            : null
+            )
+        ),
+        currentPlayer: curGame.currentPlayer.color
+        });
     }
 }
+
+export async function createGame() {
+    const gamesRef = ref(database, "activeGames");
+    const newGameRef = push(gamesRef);
+    const gameID = newGameRef.key;
+
+    const makeEmpty = () =>
+        Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => null));
+
+    const bottomBoard = makeEmpty();
+    const topBoard = makeEmpty();
+
+    const placements = [
+        // pawns on bottom (z=0)
+    { x:6,y:3,z:0,piece:1,color:0 },
+    { x:5,y:2,z:0,piece:1,color:0 },
+    { x:4,y:1,z:0,piece:1,color:0 },
+    { x:3,y:0,z:0,piece:1,color:0 },
+    // pawns on bottom but black side (z=0,color=1)
+    { x:0,y:3,z:0,piece:1,color:1 },
+    { x:1,y:4,z:0,piece:1,color:1 },
+    { x:2,y:5,z:0,piece:1,color:1 },
+    { x:3,y:6,z:0,piece:1,color:1 },
+
+    // pawns on top (z=1)
+    { x:6,y:3,z:1,piece:1,color:1 },
+    { x:5,y:2,z:1,piece:1,color:1 },
+    { x:4,y:1,z:1,piece:1,color:1 },
+    { x:3,y:0,z:1,piece:1,color:1 },
+    // pawns on top but white side (z=1,color=0)
+    { x:0,y:3,z:1,piece:1,color:0 },
+    { x:1,y:4,z:1,piece:1,color:0 },
+    { x:2,y:5,z:1,piece:1,color:0 },
+    { x:3,y:6,z:1,piece:1,color:0 },
+
+    // kings
+    { x:6,y:0,z:0,piece:7,color:0 },
+    { x:0,y:6,z:1,piece:7,color:0 },
+    { x:0,y:6,z:0,piece:7,color:1 },
+    { x:6,y:0,z:1,piece:7,color:1 },
+
+    // queens
+    { x:0,y:5,z:1,piece:6,color:0 },
+    { x:5,y:0,z:0,piece:6,color:0 },
+    { x:5,y:0,z:1,piece:6,color:1 },
+    { x:0,y:5,z:0,piece:6,color:1 },
+
+    // bishops
+    { x:1,y:6,z:1,piece:3,color:0 },
+    { x:6,y:1,z:0,piece:3,color:0 },
+    { x:6,y:1,z:1,piece:3,color:1 },
+    { x:1,y:6,z:0,piece:3,color:1 },
+
+    // castles
+    { x:1,y:5,z:1,piece:2,color:0 },
+    { x:5,y:1,z:0,piece:2,color:0 },
+    { x:5,y:1,z:1,piece:2,color:1 },
+    { x:1,y:5,z:0,piece:2,color:1 },
+
+    // knights
+    { x:0,y:4,z:1,piece:4,color:0 },
+    { x:4,y:0,z:0,piece:4,color:0 },
+    { x:4,y:0,z:1,piece:4,color:1 },
+    { x:0,y:4,z:0,piece:4,color:1 },
+
+    // wizards
+    { x:6,y:2,z:0,piece:5,color:0 },
+    { x:2,y:6,z:0,piece:5,color:1 },
+    { x:6,y:2,z:1,piece:5,color:1 },
+    { x:2,y:6,z:1,piece:5,color:0 }
+  ];
+
+  for (const {x,y,z,piece,color} of placements) {
+    const target = z === 0 ? bottomBoard : topBoard;
+    target[x][y] = { pieceNumber: piece, color };
+  }
+
+  const initialState = {
+    player1ID: playerID,
+    player2ID: null,
+    currentPlayer: 0,
+    status: "waiting",
+    bottomBoard,
+    topBoard
+  };
+
+  console.log(`Created game: ID = ${gameID}`);
+
+  await set(newGameRef, initialState);
+    switchView("game");
+    const { game, unsubscribe } = await waitForGameStart(gameID);
+    curGame = game;
+}
+
+export async function joinGame(gameID) {
+    const gameRef = ref(database, `activeGames/${gameID}`);
+    const snap = await get(gameRef);
+    if(!snap.exists()) {
+        throw new Error(`Game ${gameID} not found`);
+    }
+
+    const data = snap.val();
+
+    if(data.player2ID) {
+        throw newError(`Game ${gameID} already has two players`);
+    }
+
+    console.log(`Joined game: ${gameID}`);
+
+    await update(gameRef, {
+        player2ID: playerID,
+        status: "active",
+    });
+    switchView("game");
+    const { game, unsubscribe } = await waitForGameStart(gameID);
+    curGame = game;
+}
+
+export function gameUpdates(gameID) {
+    const gameRef = ref(database, `activeGames/${gameID}`);
+    let localGame = null;
+
+    const unsubscribe = onValue(gameRef, (snap) => {
+        if (!snap.exists()) {
+            console.warn(`Game ${gameID} was removed from the database.`);
+            return;
+        }
+        const state = snap.val();
+        if(!localGame) {
+            if(state.player2ID && state.status === 'active') {
+                localGame = new Game(gameID, state.player1ID, state.player2ID);
+
+                localGame.bottomBoard.applyBoardState(localGame.bottomBoard, state.bottomBoard);
+                localGame.topBoard.applyBoardState(localGame.topBoard, state.topBoard);
+                localGame.currentPlayer =
+                    state.currentPlayer === localGame.player1.color ? localGame.player1 : localGame.player2;
+                localGame.createBoardDisplay(localGame.topBoard, topBoardDisplay);
+                localGame.createBoardDisplay(localGame.bottomBoard, bottomBoardDisplay);
+            }
+        } else {
+                    localGame.currentPlayer =
+                state.currentPlayer === localGame.player1.color
+                ? localGame.player1
+                : localGame.player2;
+            localGame.bottomBoard.applyBoardState(localGame.bottomBoard, state.bottomBoard);
+            localGame.topBoard.applyBoardState(localGame.topBoard,    state.topBoard);
+            localGame.createBoardDisplay(
+                localGame.topBoard,  topBoardDisplay
+            );
+            localGame.createBoardDisplay(
+                localGame.bottomBoard, bottomBoardDisplay
+            );
+        }
+    })
+
+    return unsubscribe;
+}
+
+export function waitForGameStart(gameID) {
+    const gameRef = ref(database, `activeGames/${gameID}`);
+    let localGame = null;
+  
+    return new Promise((resolve, reject) => {
+      const unsubscribe = onValue(
+        gameRef,
+        (snap) => {
+          if (!snap.exists()) {
+            reject(new Error(`Game ${gameID} no longer exists`));
+            return;
+          }
+          const state = snap.val();
+  
+          // first time only: create & render
+          if (!localGame) {
+            if (state.player2ID && state.status === "active") {
+              localGame = new Game(gameID, state.player1ID, state.player2ID);
+  
+              // patch in the saved boards
+              localGame.bottomBoard.applyBoardState(localGame.bottomBoard, state.bottomBoard);
+              localGame.topBoard.applyBoardState(localGame.topBoard,    state.topBoard);
+  
+              // set the correct currentPlayer
+              localGame.currentPlayer =
+                state.currentPlayer === localGame.player1.color
+                  ? localGame.player1
+                  : localGame.player2;
+  
+              // render them
+              localGame.createBoardDisplay(localGame.topBoard,    topBoardDisplay);
+              localGame.createBoardDisplay(localGame.bottomBoard, bottomBoardDisplay);
+  
+              // now the game is ready—resolve!
+              resolve({ game: localGame, unsubscribe });
+            }
+          } else {
+            // subsequent updates: just patch and re‑render
+            localGame.currentPlayer =
+              state.currentPlayer === localGame.player1.color
+                ? localGame.player1
+                : localGame.player2;
+  
+            localGame.bottomBoard.applyBoardState(localGame.bottomBoard, state.bottomBoard);
+            localGame.topBoard.applyBoardState(localGame.topBoard,    state.topBoard);
+  
+            localGame.createBoardDisplay(localGame.topBoard,    topBoardDisplay);
+            localGame.createBoardDisplay(localGame.bottomBoard, bottomBoardDisplay);
+          }
+        },
+        (err) => {
+          reject(err);
+        }
+      );
+    });
+  }

@@ -22,10 +22,11 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const database = getDatabase(app);
 
-const matchmakingButton = document.getElementById("matchmakingButton");
 const statusMessage = document.getElementById("statusMessage");
 const lobbyView = document.getElementById("lobbyView");
 const gameCenterView = document.getElementById("gameCenterView");
+
+export let playerID;
 
 signInAnonymously(auth)
 .then(() => {
@@ -58,3 +59,4 @@ auth.onAuthStateChanged((user) => {
         console.log("User is signed out.");
     }
 });
+
