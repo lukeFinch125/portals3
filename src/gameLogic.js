@@ -1,7 +1,7 @@
 import { Pawn, Castle, Bishop, Knight, Queen, King, Wizard } from "./pieceLogic.js";
 import "./index.css";
-import { app, database } from "./index.js";
-import { getDatabase, ref, push, set, get, update, onValue } from "firebase/database";
+import { database } from "./index.js";
+import { ref, push, set, get, update, onValue } from "firebase/database";
 import blackBishop from "./svg/blackBishop.svg";
 import blackCastle from "./svg/blackCastle.svg";
 import blackKing from "./svg/blackKing.svg";
@@ -21,11 +21,9 @@ import { playerID } from "./index.js";
 
 const topBoardDisplay = document.querySelector(".topBoardContainer");
 const bottomBoardDisplay = document.querySelector(".bottomBoardContainer");
-const statusMessage = document.getElementById("statusMessage");
-const lobbyView = document.getElementById("lobbyView");
-const gameCenterView = document.getElementById("gameCenterView");
 const createGameButton = document.querySelector("#createGame");
 const joinGameButton = document.querySelector("#joinGame");
+const logDiv = document.querySelector(".log");
 
 joinGameButton.addEventListener("click", () => {
     let newGameID = prompt("Enter game ID");
@@ -36,61 +34,7 @@ createGameButton.addEventListener("click", () => {
     createGame();
 })
 
-
-
 export let curGame = null;
-
-const logDiv = document.querySelector(".log");
-if (logDiv) {
-  // Override console.log
-  const originalConsoleLog = console.log;
-  console.log = function (...args) {
-    originalConsoleLog.apply(console, args);
-    const message = args.join(" ");
-    const p = document.createElement("p");
-    p.textContent = message;
-    logDiv.appendChild(p);
-    logDiv.scrollTop = logDiv.scrollHeight;
-  };
-} else {
-  console.warn("Log div not found.");
-}
-
-
-function switchView(view) {
-    const lobbyView = document.getElementById("lobbyView");
-    const gameCenterView = document.getElementById("gameCenterView");
-  
-    if (view === "game") {
-      lobbyView.style.display = "none";
-      gameCenterView.style.display = "block";
-    } else if (view === "waiting") {
-      gameCenterView.style.display = "none";
-      lobbyView.style.display = "block";
-    }
-  }
-
-// Save a reference to the original console.log
-const originalConsoleLog = console.log;
-
-// Override console.log
-console.log = function(...args) {
-  // Call the original console.log to still log to the browser console
-  originalConsoleLog.apply(console, args);
-  
-  // Format the message (join the args with a space)
-  const message = args.join(" ");
-  
-  // Create a new paragraph element for this message
-  const p = document.createElement("p");
-  p.textContent = message;
-  
-  // Append the paragraph to the log div
-  logDiv.appendChild(p);
-  
-  // Optionally, scroll to the bottom of the div
-  logDiv.scrollTop = logDiv.scrollHeight;
-};
 
 export class Square {
     constructor(x, y, z, board) {
@@ -383,73 +327,6 @@ export class Game {
                 container.appendChild(cell);
             }
         }
-    }
-
-
-    startGame() {
-        console.log("Game starting");
-
-        //place pawns
-        this.placePiece(6,3,0,1,0);
-        this.placePiece(5,2,0,1,0);
-        this.placePiece(4,1,0,1,0);
-        this.placePiece(3,0,0,1,0);
-
-        this.placePiece(0,3,0,1,1);
-        this.placePiece(1,4,0,1,1);
-        this.placePiece(2,5,0,1,1);
-        this.placePiece(3,6,0,1,1);
-
-        this.placePiece(6,3,1,1,1);
-        this.placePiece(5,2,1,1,1);
-        this.placePiece(4,1,1,1,1);
-        this.placePiece(3,0,1,1,1);
-        
-        this.placePiece(0,3,1,1,0);
-        this.placePiece(1,4,1,1,0);
-        this.placePiece(2,5,1,1,0);
-        this.placePiece(3,6,1,1,0);
-
-        //place kings
-        this.placePiece(6,0,0,7,0);
-        this.placePiece(0,6,1,7,0);
-        this.placePiece(0,6,0,7,1);
-        this.placePiece(6,0,1,7,1);
-
-        //place queens
-        this.placePiece(0,5,1,6,0);
-        this.placePiece(5,0,0,6,0);
-        this.placePiece(5,0,1,6,1);
-        this.placePiece(0,5,0,6,1);
-
-        //places bishops
-        this.placePiece(1,6,1,3,0);
-        this.placePiece(6,1,0,3,0);
-        this.placePiece(6,1,1,3,1);
-        this.placePiece(1,6,0,3,1);
-
-        //places castle
-        this.placePiece(1,5,1,2,0);
-        this.placePiece(5,1,0,2,0);
-        this.placePiece(5,1,1,2,1);
-        this.placePiece(1,5,0,2,1);
-
-        //places knights
-        this.placePiece(0,4,1,4,0);
-        this.placePiece(4,0,0,4,0);
-        this.placePiece(4,0,1,4,1);
-        this.placePiece(0,4,0,4,1);
-
-        //place Wizards
-        this.placePiece(6,2,0,5,0);
-        this.placePiece(2,6,0,5,1);
-        this.placePiece(6,2,1,5,1);
-        this.placePiece(2,6,1,5,0);
-
-        this.topBoard.addPortals();
-        this.bottomBoard.addPortals();
-        this.createBoardDisplay(this.topBoard, topBoardDisplay);
-        this.createBoardDisplay(this.bottomBoard, bottomBoardDisplay);
     }
     
     placePiece(x,y,z,piece, color) {
@@ -1003,4 +880,31 @@ export function waitForGameStart(gameID) {
         }
       );
     });
+  }
+
+  if (logDiv) {
+    const originalConsoleLog = console.log;
+    console.log = function (...args) {
+      originalConsoleLog.apply(console, args);
+      const message = args.join(" ");
+      const p = document.createElement("p");
+      p.textContent = message;
+      logDiv.appendChild(p);
+      logDiv.scrollTop = logDiv.scrollHeight;
+    };
+  } else {
+    console.warn("Log div not found.");
+  }
+
+  function switchView(view) {
+    const lobbyView = document.getElementById("lobbyView");
+    const gameCenterView = document.getElementById("gameCenterView");
+  
+    if (view === "game") {
+      lobbyView.style.display = "none";
+      gameCenterView.style.display = "block";
+    } else if (view === "waiting") {
+      gameCenterView.style.display = "none";
+      lobbyView.style.display = "block";
+    }
   }
