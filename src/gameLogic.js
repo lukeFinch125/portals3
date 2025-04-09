@@ -24,6 +24,8 @@ const bottomBoardDisplay = document.querySelector(".bottomBoardContainer");
 const createGameButton = document.querySelector("#createGame");
 const joinGameButton = document.querySelector("#joinGame");
 const logDiv = document.querySelector(".log");
+const yourID = document.querySelector(".playerID");
+const currentTurn = document.querySelector(".currentTurn");
 
 joinGameButton.addEventListener("click", () => {
     let newGameID = prompt("Enter game ID");
@@ -35,6 +37,269 @@ createGameButton.addEventListener("click", () => {
 })
 
 export let curGame = null;
+
+export async function createGame() {
+    const gamesRef = ref(database, "activeGames");
+    const newGameRef = push(gamesRef);
+    const gameID = newGameRef.key;
+
+    const makeEmpty = () =>
+        Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => ({
+            pieceNumber: 0,
+            color: null,
+            isPortal: false,
+            portalisActive: false,
+        }))
+    );
+
+    const bottomBoard = makeEmpty();
+    const topBoard = makeEmpty();
+
+    const placements = [
+        // pawns on bottom (z=0)
+    { x:6,y:3,z:0,piece:1,color:0 },
+    { x:5,y:2,z:0,piece:1,color:0 },
+    { x:4,y:1,z:0,piece:1,color:0 },
+    { x:3,y:0,z:0,piece:1,color:0 },
+    // pawns on bottom but black side (z=0,color=1)
+    { x:0,y:3,z:0,piece:1,color:1 },
+    { x:1,y:4,z:0,piece:1,color:1 },
+    { x:2,y:5,z:0,piece:1,color:1 },
+    { x:3,y:6,z:0,piece:1,color:1 },
+
+    // pawns on top (z=1)
+    { x:6,y:3,z:1,piece:1,color:1 },
+    { x:5,y:2,z:1,piece:1,color:1 },
+    { x:4,y:1,z:1,piece:1,color:1 },
+    { x:3,y:0,z:1,piece:1,color:1 },
+    // pawns on top but white side (z=1,color=0)
+    { x:0,y:3,z:1,piece:1,color:0 },
+    { x:1,y:4,z:1,piece:1,color:0 },
+    { x:2,y:5,z:1,piece:1,color:0 },
+    { x:3,y:6,z:1,piece:1,color:0 },
+
+    // kings
+    { x:6,y:0,z:0,piece:7,color:0 },
+    { x:0,y:6,z:1,piece:7,color:0 },
+    { x:0,y:6,z:0,piece:7,color:1 },
+    { x:6,y:0,z:1,piece:7,color:1 },
+
+    // queens
+    { x:0,y:5,z:1,piece:6,color:0 },
+    { x:5,y:0,z:0,piece:6,color:0 },
+    { x:5,y:0,z:1,piece:6,color:1 },
+    { x:0,y:5,z:0,piece:6,color:1 },
+
+    // bishops
+    { x:1,y:6,z:1,piece:3,color:0 },
+    { x:6,y:1,z:0,piece:3,color:0 },
+    { x:6,y:1,z:1,piece:3,color:1 },
+    { x:1,y:6,z:0,piece:3,color:1 },
+
+    // castles
+    { x:1,y:5,z:1,piece:2,color:0 },
+    { x:5,y:1,z:0,piece:2,color:0 },
+    { x:5,y:1,z:1,piece:2,color:1 },
+    { x:1,y:5,z:0,piece:2,color:1 },
+
+    // knights
+    { x:0,y:4,z:1,piece:4,color:0 },
+    { x:4,y:0,z:0,piece:4,color:0 },
+    { x:4,y:0,z:1,piece:4,color:1 },
+    { x:0,y:4,z:0,piece:4,color:1 },
+
+    // wizards
+    { x:6,y:2,z:0,piece:5,color:0 },
+    { x:2,y:6,z:0,piece:5,color:1 },
+    { x:6,y:2,z:1,piece:5,color:1 },
+    { x:2,y:6,z:1,piece:5,color:0 }
+  ];
+
+  for (const {x,y,z,piece,color} of placements) {
+    const target = z === 0 ? bottomBoard : topBoard;
+    target[x][y] = { pieceNumber: piece, color };
+  }
+
+  const portalCoords = [{ x:1, y:1 }, { x:5, y: 5} ];
+  for (const { x,y } of portalCoords) {
+    bottomBoard[x][y].isPortal = true;
+    bottomBoard[x][y].portalisActive = true;
+    topBoard[x][y].isPortal = true;
+    topBoard[x][y].portalisActive = true;
+  }
+
+  const initialState = {
+    player1ID: playerID,
+    player2ID: null,
+    currentPlayer: 0,
+    status: "waiting",
+    bottomBoard,
+    topBoard
+  };
+
+  console.log(`Created game: ID = ${gameID}`);
+
+  await set(newGameRef, initialState);
+    switchView("game");
+    const { game, unsubscribe } = await waitForGameStart(gameID);
+    curGame = game;
+}
+
+export async function joinGame(gameID) {
+    const gameRef = ref(database, `activeGames/${gameID}`);
+    const snap = await get(gameRef);
+    if(!snap.exists()) {
+        throw new Error(`Game ${gameID} not found`);
+    }
+
+    const data = snap.val();
+
+    if(data.player2ID) {
+        throw newError(`Game ${gameID} already has two players`);
+    }
+
+    console.log(`Joined game: ${gameID}`);
+
+    await update(gameRef, {
+        player2ID: playerID,
+        status: "active",
+    });
+    switchView("game");
+    const { game, unsubscribe } = await waitForGameStart(gameID);
+    curGame = game;
+}
+
+export function gameUpdates(gameID) {
+    const gameRef = ref(database, `activeGames/${gameID}`);
+    let localGame = null;
+
+    const unsubscribe = onValue(gameRef, (snap) => {
+        if (!snap.exists()) {
+            console.warn(`Game ${gameID} was removed from the database.`);
+            return;
+        }
+        const state = snap.val();
+        if(!localGame) {
+            if(state.player2ID && state.status === 'active') {
+                localGame = new Game(gameID, state.player1ID, state.player2ID);
+
+                localGame.bottomBoard.applyBoardState(localGame.bottomBoard, state.bottomBoard);
+                localGame.topBoard.applyBoardState(localGame.topBoard, state.topBoard);
+                localGame.currentPlayer =
+                    state.currentPlayer === localGame.player1.color ? localGame.player1 : localGame.player2;
+                localGame.createBoardDisplay(localGame.topBoard, topBoardDisplay);
+                localGame.createBoardDisplay(localGame.bottomBoard, bottomBoardDisplay);
+            }
+        } else {
+                    localGame.currentPlayer =
+                state.currentPlayer === localGame.player1.color
+                ? localGame.player1
+                : localGame.player2;
+            localGame.bottomBoard.applyBoardState(localGame.bottomBoard, state.bottomBoard);
+            localGame.topBoard.applyBoardState(localGame.topBoard,    state.topBoard);
+            localGame.createBoardDisplay(
+                localGame.topBoard,  topBoardDisplay
+            );
+            localGame.createBoardDisplay(
+                localGame.bottomBoard, bottomBoardDisplay
+            );
+            currentTurn.textContent = localGame.currentPlayer;
+            yourID.textContent = playerID;
+        }
+    })
+
+    return unsubscribe;
+}
+
+export function waitForGameStart(gameID) {
+    const gameRef = ref(database, `activeGames/${gameID}`);
+    let localGame = null;
+  
+    return new Promise((resolve, reject) => {
+      const unsubscribe = onValue(
+        gameRef,
+        (snap) => {
+          if (!snap.exists()) {
+            reject(new Error(`Game ${gameID} no longer exists`));
+            return;
+          }
+          const state = snap.val();
+  
+          // first time only: create & render
+          if (!localGame) {
+            if (state.player2ID && state.status === "active") {
+              localGame = new Game(gameID, state.player1ID, state.player2ID);
+  
+              // patch in the saved boards
+              localGame.bottomBoard.applyBoardState(localGame.bottomBoard, state.bottomBoard);
+              localGame.topBoard.applyBoardState(localGame.topBoard,    state.topBoard);
+  
+              // set the correct currentPlayer
+              localGame.currentPlayer =
+                state.currentPlayer === localGame.player1.color
+                  ? localGame.player1
+                  : localGame.player2;
+  
+              // render them
+              localGame.createBoardDisplay(localGame.topBoard,    topBoardDisplay);
+              localGame.createBoardDisplay(localGame.bottomBoard, bottomBoardDisplay);
+
+              currentTurn.textContent = localGame.currentPlayer.name;
+                yourID.textContent = playerID;
+  
+              // now the game is ready—resolve!
+              resolve({ game: localGame, unsubscribe });
+            }
+          } else {
+            // subsequent updates: just patch and re‑render
+            localGame.currentPlayer =
+              state.currentPlayer === localGame.player1.color
+                ? localGame.player1
+                : localGame.player2;
+  
+            localGame.bottomBoard.applyBoardState(localGame.bottomBoard, state.bottomBoard);
+            localGame.topBoard.applyBoardState(localGame.topBoard,    state.topBoard);
+  
+            localGame.createBoardDisplay(localGame.topBoard,    topBoardDisplay);
+            localGame.createBoardDisplay(localGame.bottomBoard, bottomBoardDisplay);
+
+            currentTurn.textContent = localGame.currentPlayer.name;
+            yourID.textContent = playerID;
+          }
+        },
+        (err) => {
+          reject(err);
+        }
+      );
+    });
+  }
+
+  if (logDiv) {
+    const originalConsoleLog = console.log;
+    console.log = function (...args) {
+      originalConsoleLog.apply(console, args);
+      const message = args.join(" ");
+      const p = document.createElement("p");
+      p.textContent = message;
+      logDiv.appendChild(p);
+      logDiv.scrollTop = logDiv.scrollHeight;
+    };
+  } else {
+    console.warn("Log div not found.");
+  }
+
+  function switchView(view) {
+    const lobbyView = document.getElementById("lobbyView");
+    const gameCenterView = document.getElementById("gameCenterView");
+  
+    if (view === "game") {
+      lobbyView.style.display = "none";
+      gameCenterView.style.display = "block";
+    } else if (view === "waiting") {
+      gameCenterView.style.display = "none";
+      lobbyView.style.display = "block";
+    }
+  }
 
 export class Square {
     constructor(x, y, z, board) {
@@ -178,10 +443,15 @@ export class Board {
                 const sq = board.getSquare(x,y);
                 const cell = boardStateArray[x][y];
 
+                if (cell && typeof cell.isPortal === 'boolean') {
+                    sq.isPortal       = cell.isPortal;
+                    sq.portalisActive = cell.portalisActive;
+                  }
+
                 const exisiting = sq.getPiece();
                 if (exisiting) sq.pieceExit();
 
-                if (cell) {
+                if (cell && cell.pieceNumber > 0) {
                     curGame.placePiece(x,y, board.z, cell.pieceNumber, cell.color);
                 }
             }
@@ -232,12 +502,14 @@ export class Game {
                 this.selectedSquare = null;
             }
         }
+        const isMyTurn = this.currentPlayer.name === playerID;
 
 
         for(let row = 0; row < 7; row++) {
             for(let col = 0; col < 7; col++) {
                 const cell = document.createElement('div');
                 let curSquare = board.getSquare(row,col);
+                cell.isMyTurn = isMyTurn;
                 cell.square = curSquare
                 cell.style.border = "1px solid #333";
                 cell.style.padding = "10px";
@@ -306,7 +578,16 @@ export class Game {
                             break;
                     }
                 }
+
+                
+
                 cell.addEventListener("click", () => {
+
+                    if(!cell.isMyTurn) {
+                        console.log("It's not your turn");
+                        return;
+                    }
+
                     if(!this.selectedSquare) {
                         if(curSquare.getPiece() && curSquare.getPiece().color === this.currentPlayer.color) {
                             this.selectedSquare = curSquare;
@@ -508,23 +789,9 @@ export class Player {
             curGame.currentPlayer = curGame.currentPlayer === curGame.player1 ? curGame.player2 : curGame.player1;
             curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().topBoard, topBoardDisplay);
             curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().bottomBoard, bottomBoardDisplay);
+
+            await pushStateToFirebase(curGame);
         }
-        const gameRef = ref(database, `activeGames/${curGame.gameID}`);
-        await update(gameRef, {
-        bottomBoard: curGame.bottomBoard.boardArray.map(row =>
-            row.map(sq => sq.getPiece() 
-            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
-            : null
-            )
-        ),
-        topBoard: curGame.topBoard.boardArray.map(row =>
-            row.map(sq => sq.getPiece() 
-            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
-            : null
-            )
-        ),
-        currentPlayer: curGame.currentPlayer.color
-        });
     }
     
 
@@ -549,22 +816,8 @@ export class Player {
         curGame.currentPlayer = curGame.currentPlayer === curGame.player1 ? curGame.player2 : curGame.player1;
         curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().topBoard, topBoardDisplay);
         curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().bottomBoard, bottomBoardDisplay);
-        const gameRef = ref(database, `activeGames/${curGame.gameID}`);
-        await update(gameRef, {
-        bottomBoard: curGame.bottomBoard.boardArray.map(row =>
-            row.map(sq => sq.getPiece() 
-            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
-            : null
-            )
-        ),
-        topBoard: curGame.topBoard.boardArray.map(row =>
-            row.map(sq => sq.getPiece() 
-            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
-            : null
-            )
-        ),
-        currentPlayer: curGame.currentPlayer.color
-        });
+        
+        await pushStateToFirebase(curGame);
     }
     
 
@@ -595,25 +848,6 @@ export class Player {
             newLocation.pieceEntry(selectedPiece);
             console.log(`piece moved through portal to ${newLocation.getInfo()}`);
         }
-        curGame.currentPlayer = curGame.currentPlayer === curGame.player1 ? curGame.player2 : curGame.player1;
-        curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().topBoard, topBoardDisplay);
-        curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().bottomBoard, bottomBoardDisplay);
-        const gameRef = ref(database, `activeGames/${curGame.gameID}`);
-        await update(gameRef, {
-        bottomBoard: curGame.bottomBoard.boardArray.map(row =>
-            row.map(sq => sq.getPiece() 
-            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
-            : null
-            )
-        ),
-        topBoard: curGame.topBoard.boardArray.map(row =>
-            row.map(sq => sq.getPiece() 
-            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
-            : null
-            )
-        ),
-        currentPlayer: curGame.currentPlayer.color
-        });
     }
 
     async capturePortalAction(selectedPiece, newLocation) {
@@ -645,266 +879,26 @@ export class Player {
             newLocation.pieceEntry(selectedPiece);
             console.log(`piece moved through portal to ${newLocation.getInfo()}`);
         }
-        curGame.currentPlayer = curGame.currentPlayer === curGame.player1 ? curGame.player2 : curGame.player1;
-        curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().topBoard, topBoardDisplay);
-        curGame.createBoardDisplay(selectedPiece.curLocation.getBoard().getGame().bottomBoard, bottomBoardDisplay);
-        
-        const gameRef = ref(database, `activeGames/${curGame.gameID}`);
-        await update(gameRef, {
-        bottomBoard: curGame.bottomBoard.boardArray.map(row =>
-            row.map(sq => sq.getPiece() 
+    }
+}
+
+function pushStateToFirebase(game) {
+    const gameRef = ref(database, `activeGames/${game.gameID}`);
+    return update(gameRef, {
+      bottomBoard: game.bottomBoard.boardArray.map(row =>
+        row.map(sq =>
+          sq.getPiece()
             ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
             : null
-            )
-        ),
-        topBoard: curGame.topBoard.boardArray.map(row =>
-            row.map(sq => sq.getPiece() 
+        )
+      ),
+      topBoard: game.topBoard.boardArray.map(row =>
+        row.map(sq =>
+          sq.getPiece()
             ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
             : null
-            )
-        ),
-        currentPlayer: curGame.currentPlayer.color
-        });
-    }
-}
-
-export async function createGame() {
-    const gamesRef = ref(database, "activeGames");
-    const newGameRef = push(gamesRef);
-    const gameID = newGameRef.key;
-
-    const makeEmpty = () =>
-        Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => null));
-
-    const bottomBoard = makeEmpty();
-    const topBoard = makeEmpty();
-
-    const placements = [
-        // pawns on bottom (z=0)
-    { x:6,y:3,z:0,piece:1,color:0 },
-    { x:5,y:2,z:0,piece:1,color:0 },
-    { x:4,y:1,z:0,piece:1,color:0 },
-    { x:3,y:0,z:0,piece:1,color:0 },
-    // pawns on bottom but black side (z=0,color=1)
-    { x:0,y:3,z:0,piece:1,color:1 },
-    { x:1,y:4,z:0,piece:1,color:1 },
-    { x:2,y:5,z:0,piece:1,color:1 },
-    { x:3,y:6,z:0,piece:1,color:1 },
-
-    // pawns on top (z=1)
-    { x:6,y:3,z:1,piece:1,color:1 },
-    { x:5,y:2,z:1,piece:1,color:1 },
-    { x:4,y:1,z:1,piece:1,color:1 },
-    { x:3,y:0,z:1,piece:1,color:1 },
-    // pawns on top but white side (z=1,color=0)
-    { x:0,y:3,z:1,piece:1,color:0 },
-    { x:1,y:4,z:1,piece:1,color:0 },
-    { x:2,y:5,z:1,piece:1,color:0 },
-    { x:3,y:6,z:1,piece:1,color:0 },
-
-    // kings
-    { x:6,y:0,z:0,piece:7,color:0 },
-    { x:0,y:6,z:1,piece:7,color:0 },
-    { x:0,y:6,z:0,piece:7,color:1 },
-    { x:6,y:0,z:1,piece:7,color:1 },
-
-    // queens
-    { x:0,y:5,z:1,piece:6,color:0 },
-    { x:5,y:0,z:0,piece:6,color:0 },
-    { x:5,y:0,z:1,piece:6,color:1 },
-    { x:0,y:5,z:0,piece:6,color:1 },
-
-    // bishops
-    { x:1,y:6,z:1,piece:3,color:0 },
-    { x:6,y:1,z:0,piece:3,color:0 },
-    { x:6,y:1,z:1,piece:3,color:1 },
-    { x:1,y:6,z:0,piece:3,color:1 },
-
-    // castles
-    { x:1,y:5,z:1,piece:2,color:0 },
-    { x:5,y:1,z:0,piece:2,color:0 },
-    { x:5,y:1,z:1,piece:2,color:1 },
-    { x:1,y:5,z:0,piece:2,color:1 },
-
-    // knights
-    { x:0,y:4,z:1,piece:4,color:0 },
-    { x:4,y:0,z:0,piece:4,color:0 },
-    { x:4,y:0,z:1,piece:4,color:1 },
-    { x:0,y:4,z:0,piece:4,color:1 },
-
-    // wizards
-    { x:6,y:2,z:0,piece:5,color:0 },
-    { x:2,y:6,z:0,piece:5,color:1 },
-    { x:6,y:2,z:1,piece:5,color:1 },
-    { x:2,y:6,z:1,piece:5,color:0 }
-  ];
-
-  for (const {x,y,z,piece,color} of placements) {
-    const target = z === 0 ? bottomBoard : topBoard;
-    target[x][y] = { pieceNumber: piece, color };
-  }
-
-  const initialState = {
-    player1ID: playerID,
-    player2ID: null,
-    currentPlayer: 0,
-    status: "waiting",
-    bottomBoard,
-    topBoard
-  };
-
-  console.log(`Created game: ID = ${gameID}`);
-
-  await set(newGameRef, initialState);
-    switchView("game");
-    const { game, unsubscribe } = await waitForGameStart(gameID);
-    curGame = game;
-}
-
-export async function joinGame(gameID) {
-    const gameRef = ref(database, `activeGames/${gameID}`);
-    const snap = await get(gameRef);
-    if(!snap.exists()) {
-        throw new Error(`Game ${gameID} not found`);
-    }
-
-    const data = snap.val();
-
-    if(data.player2ID) {
-        throw newError(`Game ${gameID} already has two players`);
-    }
-
-    console.log(`Joined game: ${gameID}`);
-
-    await update(gameRef, {
-        player2ID: playerID,
-        status: "active",
+        )
+      ),
+      currentPlayer: game.currentPlayer.color
     });
-    switchView("game");
-    const { game, unsubscribe } = await waitForGameStart(gameID);
-    curGame = game;
-}
-
-export function gameUpdates(gameID) {
-    const gameRef = ref(database, `activeGames/${gameID}`);
-    let localGame = null;
-
-    const unsubscribe = onValue(gameRef, (snap) => {
-        if (!snap.exists()) {
-            console.warn(`Game ${gameID} was removed from the database.`);
-            return;
-        }
-        const state = snap.val();
-        if(!localGame) {
-            if(state.player2ID && state.status === 'active') {
-                localGame = new Game(gameID, state.player1ID, state.player2ID);
-
-                localGame.bottomBoard.applyBoardState(localGame.bottomBoard, state.bottomBoard);
-                localGame.topBoard.applyBoardState(localGame.topBoard, state.topBoard);
-                localGame.currentPlayer =
-                    state.currentPlayer === localGame.player1.color ? localGame.player1 : localGame.player2;
-                localGame.createBoardDisplay(localGame.topBoard, topBoardDisplay);
-                localGame.createBoardDisplay(localGame.bottomBoard, bottomBoardDisplay);
-            }
-        } else {
-                    localGame.currentPlayer =
-                state.currentPlayer === localGame.player1.color
-                ? localGame.player1
-                : localGame.player2;
-            localGame.bottomBoard.applyBoardState(localGame.bottomBoard, state.bottomBoard);
-            localGame.topBoard.applyBoardState(localGame.topBoard,    state.topBoard);
-            localGame.createBoardDisplay(
-                localGame.topBoard,  topBoardDisplay
-            );
-            localGame.createBoardDisplay(
-                localGame.bottomBoard, bottomBoardDisplay
-            );
-        }
-    })
-
-    return unsubscribe;
-}
-
-export function waitForGameStart(gameID) {
-    const gameRef = ref(database, `activeGames/${gameID}`);
-    let localGame = null;
-  
-    return new Promise((resolve, reject) => {
-      const unsubscribe = onValue(
-        gameRef,
-        (snap) => {
-          if (!snap.exists()) {
-            reject(new Error(`Game ${gameID} no longer exists`));
-            return;
-          }
-          const state = snap.val();
-  
-          // first time only: create & render
-          if (!localGame) {
-            if (state.player2ID && state.status === "active") {
-              localGame = new Game(gameID, state.player1ID, state.player2ID);
-  
-              // patch in the saved boards
-              localGame.bottomBoard.applyBoardState(localGame.bottomBoard, state.bottomBoard);
-              localGame.topBoard.applyBoardState(localGame.topBoard,    state.topBoard);
-  
-              // set the correct currentPlayer
-              localGame.currentPlayer =
-                state.currentPlayer === localGame.player1.color
-                  ? localGame.player1
-                  : localGame.player2;
-  
-              // render them
-              localGame.createBoardDisplay(localGame.topBoard,    topBoardDisplay);
-              localGame.createBoardDisplay(localGame.bottomBoard, bottomBoardDisplay);
-  
-              // now the game is ready—resolve!
-              resolve({ game: localGame, unsubscribe });
-            }
-          } else {
-            // subsequent updates: just patch and re‑render
-            localGame.currentPlayer =
-              state.currentPlayer === localGame.player1.color
-                ? localGame.player1
-                : localGame.player2;
-  
-            localGame.bottomBoard.applyBoardState(localGame.bottomBoard, state.bottomBoard);
-            localGame.topBoard.applyBoardState(localGame.topBoard,    state.topBoard);
-  
-            localGame.createBoardDisplay(localGame.topBoard,    topBoardDisplay);
-            localGame.createBoardDisplay(localGame.bottomBoard, bottomBoardDisplay);
-          }
-        },
-        (err) => {
-          reject(err);
-        }
-      );
-    });
-  }
-
-  if (logDiv) {
-    const originalConsoleLog = console.log;
-    console.log = function (...args) {
-      originalConsoleLog.apply(console, args);
-      const message = args.join(" ");
-      const p = document.createElement("p");
-      p.textContent = message;
-      logDiv.appendChild(p);
-      logDiv.scrollTop = logDiv.scrollHeight;
-    };
-  } else {
-    console.warn("Log div not found.");
-  }
-
-  function switchView(view) {
-    const lobbyView = document.getElementById("lobbyView");
-    const gameCenterView = document.getElementById("gameCenterView");
-  
-    if (view === "game") {
-      lobbyView.style.display = "none";
-      gameCenterView.style.display = "block";
-    } else if (view === "waiting") {
-      gameCenterView.style.display = "none";
-      lobbyView.style.display = "block";
-    }
   }
