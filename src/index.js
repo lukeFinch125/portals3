@@ -3,8 +3,6 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously,  } from "firebase/auth";
 import { ref, getDatabase, set, onDisconnect, remove, onValue, push } from "firebase/database";
 import { Game, Player } from "./gameLogic.js";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -22,9 +20,9 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const database = getDatabase(app);
 
-const statusMessage = document.getElementById("statusMessage");
 const lobbyView = document.getElementById("lobbyView");
 const gameCenterView = document.getElementById("gameCenterView");
+const portalsTitle = document.querySelector("#portalsTitle");
 
 export let playerID;
 
@@ -59,4 +57,12 @@ auth.onAuthStateChanged((user) => {
         console.log("User is signed out.");
     }
 });
+
+import portalsLogo from './png/portalsLogo.png';
+
+const img = document.createElement("img");
+img.src = portalsLogo;
+img.alt = "Portals Logo";
+
+document.getElementById("PortalsTitle").appendChild(img);
 

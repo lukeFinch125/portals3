@@ -23,7 +23,6 @@ const topBoardDisplay = document.querySelector(".topBoardContainer");
 const bottomBoardDisplay = document.querySelector(".bottomBoardContainer");
 const createGameButton = document.querySelector("#createGame");
 const joinGameButton = document.querySelector("#joinGame");
-const logDiv = document.querySelector(".log");
 const yourID = document.querySelector(".playerID");
 const currentTurn = document.querySelector(".currentTurn");
 
@@ -39,6 +38,7 @@ createGameButton.addEventListener("click", () => {
 export let curGame = null;
 
 export async function createGame() {
+    console.log("creating Game");
     const gamesRef = ref(database, "activeGames");
     const newGameRef = push(gamesRef);
     const gameID = newGameRef.key;
@@ -117,7 +117,8 @@ export async function createGame() {
 
   for (const {x,y,z,piece,color} of placements) {
     const target = z === 0 ? bottomBoard : topBoard;
-    target[x][y] = { pieceNumber: piece, color };
+    Object.assign(target[x][y], { pieceNumber: piece, color });
+
   }
 
   const portalCoords = [{ x:1, y:1 }, { x:5, y: 5} ];
@@ -138,6 +139,8 @@ export async function createGame() {
   };
 
   console.log(`Created game: ID = ${gameID}`);
+
+  alert(`Game ID: ${gameID}`);
 
   await set(newGameRef, initialState);
     switchView("game");
@@ -203,8 +206,8 @@ export function gameUpdates(gameID) {
             localGame.createBoardDisplay(
                 localGame.bottomBoard, bottomBoardDisplay
             );
-            currentTurn.textContent = localGame.currentPlayer;
-            yourID.textContent = playerID;
+            currentTurn.textContent = "Current Turn: " + localGame.currentPlayer.name;
+            yourID.textContent = "Your ID: " + playerID;
         }
     })
 
@@ -272,20 +275,6 @@ export function waitForGameStart(gameID) {
         }
       );
     });
-  }
-
-  if (logDiv) {
-    const originalConsoleLog = console.log;
-    console.log = function (...args) {
-      originalConsoleLog.apply(console, args);
-      const message = args.join(" ");
-      const p = document.createElement("p");
-      p.textContent = message;
-      logDiv.appendChild(p);
-      logDiv.scrollTop = logDiv.scrollHeight;
-    };
-  } else {
-    console.warn("Log div not found.");
   }
 
   function switchView(view) {
@@ -519,10 +508,15 @@ export class Game {
                 cell.style.backgroundRepeat = "no-repeat";
                 cell.style.backgroundPosition = "center";
 
-                cell.style.backgroundColor = "grey";
+                const isLight = (row + col) % 2 === 0;
+                cell.style.backgroundColor = isLight ? '#f0d9b5' : '#b58863';
+
+                if(curSquare.isPortal && curSquare.portalisActive) {
+                    cell.classList.add('rainbow');
+                }
 
                 if(curSquare.isPortal) {
-                    cell.classList.add('rainbow');
+                    cell.style.backgroundColor = `grey`;
                 }
 
                 if (this.selectedSquare) {
@@ -883,21 +877,24 @@ export class Player {
 }
 
 function pushStateToFirebase(game) {
+    console.log("pushing state to fire base");
     const gameRef = ref(database, `activeGames/${game.gameID}`);
     return update(gameRef, {
       bottomBoard: game.bottomBoard.boardArray.map(row =>
-        row.map(sq =>
-          sq.getPiece()
-            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
-            : null
-        )
+        row.map(sq => ({
+          pieceNumber: sq.getPiece() ? sq.getPiece().pieceNumber : 0,
+          color: sq.getPiece() ? sq.getPiece().color : null,
+          isPortal: sq.isPortal,
+          portalisActive: sq.portalisActive
+    }))
       ),
       topBoard: game.topBoard.boardArray.map(row =>
-        row.map(sq =>
-          sq.getPiece()
-            ? { pieceNumber: sq.getPiece().pieceNumber, color: sq.getPiece().color }
-            : null
-        )
+        row.map(sq => ({
+            pieceNumber: sq.getPiece() ? sq.getPiece().pieceNumber : 0,
+            color: sq.getPiece() ? sq.getPiece().color : null,
+            isPortal: sq.isPortal,
+            portalisActive: sq.portalisActive
+        }))
       ),
       currentPlayer: game.currentPlayer.color
     });

@@ -5,27 +5,40 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Portals Multiplayer</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&family=Roboto:ital,wght@0,100..900;1,100..900&family=Titan+One&display=swap" rel="stylesheet">
 </head>
 <body>
   <!-- Waiting Room View -->
   <div id="lobbyView">
+    <div id="PortalsTitle">
+     
+    </div>
+    <div class="lobbyTitle">Lobby</div>
     <div id="waitingRoom">
-      <h2>Waiting Room</h2>
-      <button id="createGame">Create game and join</button>
-      <button id ="joinGame">Join Game</button>
+      <div class="buttons">
+        <button id="createGame">Create Game</button>
+        <button id ="joinGame">Join Game</button>
+      </div>
       <p id="statusMessage"></p>
     </div>
   </div>
 
   <!-- Game Center View (initially hidden) -->
   <div id="gameCenterView" style="display: none;">
-    <div id="title">Portals v1.1</div>
-    <div class="playerID">
-
-    </div>
-    <div class="currentTurn">
-      
+    <div id="title">Portals v1.3</div>
+    <div class="idContainers">
+      <div class="playerIDContainer">
+        <h1>Your ID: </h1>
+        <div class="playerID">
+        </div>
+      </div>
+      <div class="currentTurnContainer">
+        <h1>Current Turn: </h1>
+        <div class="currentTurn">
+        </div>
+      </div>
     </div>
     <div class="boards">
       <div class="topBoard">
