@@ -1,0 +1,9 @@
+# Ignore artifacts:
+build
+coverage
+eslint.config.mjs
+.gitignore
+/package.json
+package-lock.json
+webpack.config.js
+*.html
