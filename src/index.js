@@ -7,7 +7,7 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
 } from "firebase/auth";
-import { ref, getDatabase, set, onDisconnect } from "firebase/database";
+import { ref, getDatabase, set, onDisconnect, get } from "firebase/database";
 import "./gameLogic.js";
 import portalsLogo from "./png/portalsLogo.png";
 
@@ -123,22 +123,41 @@ function handleSignUp(email, password) {
 }
 
 function setupAuthListener() {
-  auth.onAuthStateChanged((user) => {
+  auth.onAuthStateChanged(async (user) => {
     console.log(user);
     if (user) {
       //your logged in
       playerID = user.uid;
+      currentUser = user;
       console.log(playerID);
-      const playerRef = ref(database, `anonymousPlayers/${playerID}`);
-      console.log(playerRef);
+
+      const playerRef = ref(database, `players/${playerID}`);
+
+      const accountType = user.isAnonymous ? "anonymous" : "registered";
+
+      const snapshot = await get(playerRef);
+      let playerData = snapshot.exists() ? snapshot.val() : {};
+
+      let playerName = playerData.name;
+
+      if (
+        accountType === "registered" &&
+        (!playerName || playerName.trim() === "")
+      ) {
+        while (!playerName || playerName.trim() === "") {
+          playerName = prompt("Welcome! Please enter a username: ");
+        }
+      }
 
       set(playerRef, {
-        name: "Luke",
+        name: playerName || "Guest",
         id: playerID,
-        elo: 0,
+        elo: playerData.elo || 0,
+        accountType: accountType,
+        online: true,
       });
 
-      onDisconnect(playerRef).remove();
+      onDisconnect(playerRef).update({ online: false });
     } else {
       console.log("User is signed out.");
     }

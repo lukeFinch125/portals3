@@ -147,6 +147,9 @@ export async function createGame() {
     status: "waiting",
     bottomBoard,
     topBoard,
+    winner: null,
+    loser: null,
+    moveLog: {},
   };
 
   console.log(`Created game: ID = ${gameID}`);
@@ -492,6 +495,8 @@ export class Game {
     this.gameActive = true;
     this.selectedSquare = null;
     this.gameID = gameID;
+    this.winner = null;
+    this.loser = null;
     curGame = this;
   }
 
@@ -694,12 +699,16 @@ export class Game {
 
     // Check if either side has lost both kings
     if (kingCountByColor.white >= 2) {
-      console.log("White's kings have been captured. Black wins!");
+      alert("White's kings have been captured. Black wins!");
       this.gameActive = false;
+      this.winner = this.player2;
+      this.loser = this.player1;
       return { winner: "black", reason: "White's two kings captured" };
     } else if (kingCountByColor.black >= 2) {
-      console.log("Black's kings have been captured. White wins!");
+      alert("Black's kings have been captured. White wins!");
       this.gameActive = false;
+      this.winner = this.player1;
+      this.loser = this.player2;
       return { winner: "white", reason: "Black's two kings captured" };
     } else {
       console.log("The game continues. Not enough kings captured.");
@@ -762,6 +771,33 @@ export class Game {
         }
       }
     }
+  }
+
+  endGameLogic() {
+    const gameRef = ref(database, `activeGames/${this.gameID}`);
+
+    let gameOverHandled = false;
+
+    onValue(gameRef, (snapshot) => {
+      const data = snapshot.val();
+      if (!data || gameOverHandled) return;
+
+      if (data.status === "finished") {
+        handleGameOver();
+        gameOverHandled = true;
+        alert(`Winner is ${data.winner}`);
+      }
+    });
+  }
+
+  handleGameOver() {
+    const gameRef = ref(database, `activeGames/${this.gameID}`);
+
+    get(gameRef).then((snapshot) => {
+      const data = snapshot.val();
+      const winner = data.winner;
+      const loser = data.winner;
+    });
   }
 }
 
@@ -847,7 +883,7 @@ export class Player {
         selectedPiece.curLocation.getBoard().getGame().bottomBoard,
         bottomBoardDisplay,
       );
-
+      curGame.checkKingCapture();
       await pushStateToFirebase(curGame);
     }
   }
@@ -886,7 +922,7 @@ export class Player {
       selectedPiece.curLocation.getBoard().getGame().bottomBoard,
       bottomBoardDisplay,
     );
-
+    curGame.checkKingCapture();
     await pushStateToFirebase(curGame);
   }
 
@@ -972,5 +1008,8 @@ function pushStateToFirebase(game) {
       })),
     ),
     currentPlayer: game.currentPlayer.color,
+    winner: game.winner ? game.winner.name : null,
+    loser: game.loser ? game.loser.name : null,
+    status: game.winner ? "active" : "done",
   });
 }
