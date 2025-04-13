@@ -169,20 +169,14 @@ function lobbyFormat() {
 export function switchView(view) {
   const lobbyView = document.getElementById("lobbyView");
   const gameCenterView = document.getElementById("gameCenterView");
-  const signInView = document.getElementById("signInView");
-  const signUpView = document.getElementById("signUpView");
-
-  const signInInner = document.querySelector(".signIn");
-  const signUpInner = document.querySelector(".signUp");
+  const signIn = document.querySelector(".signIn");
+  const signUp = document.querySelector(".signUp");
 
   // Hide all views and inner sections first
   lobbyView.style.display = "none";
   gameCenterView.style.display = "none";
-  signInView.style.display = "none";
-  signUpView.style.display = "none";
-
-  if (signInInner) signInInner.style.display = "none";
-  if (signUpInner) signUpInner.style.display = "none";
+  signIn.style.display = "none";
+  signUp.style.display = "none";
 
   // Show the selected view
   switch (view) {
@@ -193,12 +187,10 @@ export function switchView(view) {
       lobbyView.style.display = "block";
       break;
     case "signIn":
-      signInView.style.display = "block";
-      if (signInInner) signInInner.style.display = "block";
+      signIn.style.display = "block";
       break;
     case "signUp":
-      signUpView.style.display = "block";
-      if (signUpInner) signUpInner.style.display = "block";
+      signUp.style.display = "block";
       break;
     default:
       console.warn("Unknown view:", view);

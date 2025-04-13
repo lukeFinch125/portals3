@@ -55,12 +55,13 @@
 #PortalsTitle {
   display: flex;
   justify-content: center;
-  height: 350px;
+  align-items: flex-end;
+  height: 30vh;
+  width: 100vw;
 }
 
 img {
-  clip-path: ellipse(50% 20% at 50% 50%);
-  height: 400px;
+  height: 200px;
 }
 
 .signIn,
@@ -93,11 +94,11 @@ img {
   color: rgb(6, 12, 19);
   width: 375px;
   height: 450px;
-  padding: 0px;
 }
 
-#signUpForm > * {
-  border: 1px solid red;
+#signUpForm > *,
+#signInForm > * {
+  margin: 10px;
 }
 
 #signInForm h1,
@@ -136,7 +137,14 @@ form button[type="submit"] {
 #resetPassword,
 .guestLogin,
 #signIn {
-  background-color: red;
+  margin: 10px;
+  width: 75px;
+  height: 30px;
+  padding: 0px;
+  background-color: black;
+  color: rgb(45, 203, 199);
+  border: 1px solid black;
+  border-radius: 10px;
 }
 
 .lobbyTitle {
@@ -181,4 +189,13 @@ form button[type="submit"] {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+}
+
+#viewContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 70vh;
+  width: 100vw;
+  position: relative;
 }
