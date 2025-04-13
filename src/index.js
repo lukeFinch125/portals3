@@ -155,6 +155,7 @@ function setupAuthListener() {
         elo: playerData.elo || 0,
         accountType: accountType,
         online: true,
+        currentGame: null
       });
 
       onDisconnect(playerRef).update({ online: false });

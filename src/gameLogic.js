@@ -7,6 +7,7 @@ import {
   King,
   Wizard,
 } from "./pieceLogic.js";
+import { Square } from "./squareLogic.js";
 import "./index.css";
 import { database } from "./index.js";
 import { ref, push, set, get, update, onValue } from "firebase/database";
@@ -152,6 +153,9 @@ export async function createGame() {
     moveLog: {},
   };
 
+  const playerRef = ref(database, `players/${playerID}`);
+  await update(playerRef, { currentGame: gameID });
+
   console.log(`Created game: ID = ${gameID}`);
 
   alert(`Game ID: ${gameID}`);
@@ -181,6 +185,10 @@ export async function joinGame(gameID) {
     player2ID: playerID,
     status: "active",
   });
+
+  const playerRef = ref(database, `players/${playerID}`);
+  await update(playerRef, { currentGame: gameID });
+
   switchView("game");
   const { game, unsubscribe } = await waitForGameStart(gameID);
   curGame = game;
@@ -213,6 +221,10 @@ export function gameUpdates(gameID) {
         localGame.createBoardDisplay(localGame.bottomBoard, bottomBoardDisplay);
       }
     } else {
+      if (state.status === "done") {
+        alert(`Game Over! Winner: ${state.winner}`);
+        switchView("waiting");
+      }
       localGame.currentPlayer =
         state.currentPlayer === localGame.player1.color
           ? localGame.player1
@@ -313,79 +325,6 @@ export function waitForGameStart(gameID) {
   });
 }
 
-export class Square {
-  constructor(x, y, z, board) {
-    this.x = x;
-    this.y = y;
-    this.z = z;
-    this.board = board;
-    this.pieceOnSquare = 0;
-    this.isPortal = false;
-    this.portalisActive = false;
-  }
-
-  /*piece on square logic:
-    0 = none
-    1 = pawn
-    2 = castle
-    3 = bishop
-    4 = knight
-    5 = wizard
-    6 = queen
-    7 = king
-    */
-
-  getPortal() {
-    return this.isPortal;
-  }
-
-  getBoard() {
-    return this.board;
-  }
-
-  getPiece() {
-    return this.pieceOnSquare;
-  }
-
-  pieceEntry(piece) {
-    this.pieceOnSquare = piece;
-  }
-
-  pieceExit() {
-    this.pieceOnSquare = 0;
-  }
-
-  getInfo() {
-    const pieceInfo =
-      this.pieceOnSquare && typeof this.pieceOnSquare === "object"
-        ? this.pieceOnSquare.pieceNumber
-        : this.pieceOnSquare;
-    return `x: ${this.x} y: ${this.y} z: ${this.z} piece: ${pieceInfo}`;
-  }
-
-  getInfoForBoard() {
-    if (
-      this.getPortal() &&
-      this.pieceOnSquare &&
-      typeof this.pieceOnSquare === "object" &&
-      typeof this.pieceOnSquare.getInfoForBoardUI === "function"
-    ) {
-      return `<span class="portal-piece">${this.pieceOnSquare.getInfoForBoardUI()}</span>`;
-    } else if (this.getPortal()) {
-      return `<span class="portal">0</span>`;
-    }
-
-    if (
-      this.pieceOnSquare &&
-      typeof this.pieceOnSquare === "object" &&
-      typeof this.pieceOnSquare.getInfoForBoardUI === "function"
-    ) {
-      return this.pieceOnSquare.getInfoForBoardUI();
-    }
-    return `${this.pieceOnSquare}`;
-  }
-}
-
 export class Board {
   constructor(z, game) {
     this.z = z;
@@ -437,29 +376,6 @@ export class Board {
       toReturn += "\n";
     }
     return toReturn;
-  }
-
-  //update local State
-  async updateLocalState() {
-    const activeGameRef = ref(database, `activeGames/${curGame.gameID}`);
-    const snap = await get(activeGameRef);
-    if (!snap.exists()) {
-      throw new Error(`game ${curGame.gameID}} not found`);
-    }
-    const state = snap.val();
-    //update players turn
-    console.log(`current player is ${this.currentPlayer}`);
-    this.currentPlayer =
-      state.currentPlayer === this.player1.color ? this.player1 : this.player2;
-    console.log(`current player is now ${this.currentPlayer}`);
-
-    //update boards
-    this.applyBoardState(this.bottomBoard, state.bottomBoard);
-    this.applyBoardState(this.topBoard, state.topBoard);
-    console.log("boards updated");
-
-    this.createBoardDisplay(this.bottomBoard, bottomBoardDisplay);
-    this.createBoardDisplay(this.topBoard, topBoardDisplay);
   }
 
   applyBoardState(board, boardStateArray) {
@@ -703,12 +619,14 @@ export class Game {
       this.gameActive = false;
       this.winner = this.player2;
       this.loser = this.player1;
+      this.endGameLogic();
       return { winner: "black", reason: "White's two kings captured" };
     } else if (kingCountByColor.black >= 2) {
       alert("Black's kings have been captured. White wins!");
       this.gameActive = false;
       this.winner = this.player1;
       this.loser = this.player2;
+      this.endGameLogic();
       return { winner: "white", reason: "Black's two kings captured" };
     } else {
       console.log("The game continues. Not enough kings captured.");
@@ -780,24 +698,48 @@ export class Game {
 
     onValue(gameRef, (snapshot) => {
       const data = snapshot.val();
-      if (!data || gameOverHandled) return;
-
-      if (data.status === "finished") {
-        handleGameOver();
-        gameOverHandled = true;
-        alert(`Winner is ${data.winner}`);
+      if (data.status === "done") {
+        if (!gameOverHandled) {
+          gameOverHandled = true;
+          alert(`Winner is ${data.winner}`);
+          switchView("waiting");
+          alert("View switched");
+          // Only the winner updates elo
+          if (playerID === data.winner) {
+            this.handleGameOver();
+          }
+        }
       }
     });
   }
 
-  handleGameOver() {
+  async handleGameOver() {
     const gameRef = ref(database, `activeGames/${this.gameID}`);
 
-    get(gameRef).then((snapshot) => {
+    try {
+      const snapshot = await get(gameRef);
       const data = snapshot.val();
-      const winner = data.winner;
-      const loser = data.winner;
-    });
+
+      if(!data) {
+        console.warn("Game not found");
+        return;
+      }
+
+      const winnerRef = ref(database, `players/${data.winner}`);
+      const loserRef = ref(database, `${data.loser}`);
+
+      await update(winnerRef, {
+        elo: (data.elo) + 10,
+        currentGame: null
+      });
+
+      await update(loserRef, {
+        elo: (data.elo) - 10,
+        currentGame: null
+      })
+    } catch (error) {
+      console.error("Error handling ending game logic: ", error);
+    }
   }
 }
 
@@ -1010,6 +952,6 @@ function pushStateToFirebase(game) {
     currentPlayer: game.currentPlayer.color,
     winner: game.winner ? game.winner.name : null,
     loser: game.loser ? game.loser.name : null,
-    status: game.winner ? "active" : "done",
+    status: game.winner ? "done" : "active",
   });
 }
