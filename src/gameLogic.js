@@ -164,6 +164,7 @@ export async function createGame() {
   switchView("game");
   const { game, unsubscribe } = await waitForGameStart(gameID);
   curGame = game;
+  gameUpdates(gameID);
 }
 
 export async function joinGame(gameID) {
@@ -192,6 +193,7 @@ export async function joinGame(gameID) {
   switchView("game");
   const { game, unsubscribe } = await waitForGameStart(gameID);
   curGame = game;
+  gameUpdates(gameID);
 }
 
 export function gameUpdates(gameID) {
@@ -222,7 +224,7 @@ export function gameUpdates(gameID) {
       }
     } else {
       if (state.status === "done") {
-        alert(`Game Over! Winner: ${state.winner}`);
+        alert(`gameUpdates: winner is: ${state.winner}`);
         switchView("waiting");
       }
       localGame.currentPlayer =
@@ -691,52 +693,74 @@ export class Game {
     }
   }
 
-  endGameLogic() {
+  async endGameLogic() {
+    alert("endGamelogic firing");
     const gameRef = ref(database, `activeGames/${this.gameID}`);
 
-    let gameOverHandled = false;
+    try {
+      await update(gameRef, {
+        status: "done",
+        winner: this.winner.color,
+        loser: this.loser.color,
+      });
 
-    onValue(gameRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data.status === "done") {
-        if (!gameOverHandled) {
-          gameOverHandled = true;
-          alert(`Winner is ${data.winner}`);
-          switchView("waiting");
-          alert("View switched");
-          // Only the winner updates elo
-          if (playerID === data.winner) {
-            this.handleGameOver();
-          }
-        }
-      }
-    });
+      // Directly handle game over logic after updating
+      await this.handleGameOver();
+    } catch (error) {
+      console.error("Error in endGameLogic: ", error);
+    }
   }
 
   async handleGameOver() {
+    alert("HandleGameOver firing");
     const gameRef = ref(database, `activeGames/${this.gameID}`);
 
     try {
       const snapshot = await get(gameRef);
       const data = snapshot.val();
 
-      if(!data) {
+      if (!data) {
         console.warn("Game not found");
         return;
       }
 
-      const winnerRef = ref(database, `players/${data.winner}`);
-      const loserRef = ref(database, `${data.loser}`);
+      const winnerID =
+        data.winner === this.player1.name ? this.player1.name : this.player2.name;
+      const loserID =
+        data.loser === this.player1.name ? this.player1.name : this.player2.name;
+
+      const winnerRef = ref(database, `players/${winnerID}`);
+      const loserRef = ref(database, `players/${loserID}`);
+
+      // Fetch both players' current ELOs from the database
+      const [winnerSnap, loserSnap] = await Promise.all([
+        get(winnerRef),
+        get(loserRef),
+      ]);
+      const winnerData = winnerSnap.val();
+      const loserData = loserSnap.val();
+
+      if (!winnerData || !loserData) {
+        console.warn("Missing player data:", { winnerData, loserData });
+        return;
+      }
+
+      const winnerElo = winnerData.elo || 0; // Default to 1000 if missing
+      const loserElo = loserData.elo || 0;
 
       await update(winnerRef, {
-        elo: (data.elo) + 10,
-        currentGame: null
+        elo: winnerElo + 10,
+        currentGame: null,
       });
 
       await update(loserRef, {
-        elo: (data.elo) - 10,
-        currentGame: null
-      })
+        elo: loserElo - 10,
+        currentGame: null,
+      });
+
+      console.log(
+        `Updated ELO: ${winnerID} → ${winnerElo + 10}, ${loserID} → ${loserElo - 10}`,
+      );
     } catch (error) {
       console.error("Error handling ending game logic: ", error);
     }
