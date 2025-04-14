@@ -9,6 +9,8 @@ import {
 } from "firebase/auth";
 import { ref, getDatabase, set, onDisconnect, get } from "firebase/database";
 import "./gameLogic.js";
+import "./accountPage.js";
+import { accountView } from "./accountPage.js";
 import portalsLogo from "./png/portalsLogo.png";
 
 // Your web app's Firebase configuration
@@ -40,8 +42,23 @@ const signInForm = document.getElementById(`signInForm`);
 const signUpForm = document.getElementById(`signUpForm`);
 const guestLogins = document.getElementsByClassName("guestLogin");
 const signInButton = document.getElementById(`signIn`);
+const accountViewButton = document.getElementById('accountView');
+const matchMakingViewButton = document.getElementById(`matchMaking`);
+const rankingsViewButton = document.getElementById('leaderBoard');
 
 //action listeners
+
+accountViewButton.addEventListener("click", () => {
+  switchView("account");
+})
+
+matchMakingViewButton.addEventListener("click", () => {
+  switchView("waiting");
+})
+
+rankingsViewButton.addEventListener("click", () => {
+  switchView("leaderBoard");
+})
 
 resetPassword.addEventListener("click", () => {
   const email = prompt("Enter email to reset password");
@@ -155,7 +172,9 @@ function setupAuthListener() {
         elo: playerData.elo || 0,
         accountType: accountType,
         online: true,
-        currentGame: null
+        currentGame: null,
+        pastGames: null,
+        friends: null
       });
 
       onDisconnect(playerRef).update({ online: false });
@@ -191,12 +210,19 @@ export function switchView(view) {
   const gameCenterView = document.getElementById("gameCenterView");
   const signIn = document.querySelector(".signIn");
   const signUp = document.querySelector(".signUp");
+  const account = document.querySelector(".account");
+  const leaderBoard = document.querySelector(".leaderBoard");
+  const navBar = document.querySelector("#navBar");
 
   // Hide all views and inner sections first
   lobbyView.style.display = "none";
   gameCenterView.style.display = "none";
   signIn.style.display = "none";
   signUp.style.display = "none";
+  account.style.display = "none";
+  leaderBoard.style.display = "none";
+  navBar.style.display = "none";
+  
 
   // Show the selected view
   switch (view) {
@@ -204,6 +230,7 @@ export function switchView(view) {
       gameCenterView.style.display = "block";
       break;
     case "waiting":
+      navBar.style.display = "flex";
       lobbyView.style.display = "block";
       break;
     case "signIn":
@@ -211,6 +238,15 @@ export function switchView(view) {
       break;
     case "signUp":
       signUp.style.display = "block";
+      break;
+    case "account":
+      navBar.style.display = "flex";
+      account.style.display = "block";
+      accountView();
+      break;
+    case "leaderBoard":
+      leaderBoard.style.display = "block";
+      navBar.style.display = "flex";
       break;
     default:
       console.warn("Unknown view:", view);

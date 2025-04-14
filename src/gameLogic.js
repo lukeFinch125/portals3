@@ -196,11 +196,11 @@ export async function joinGame(gameID) {
   gameUpdates(gameID);
 }
 
-export function gameUpdates(gameID) {
+export async function gameUpdates(gameID) {
   const gameRef = ref(database, `activeGames/${gameID}`);
   let localGame = null;
 
-  const unsubscribe = onValue(gameRef, (snap) => {
+  const unsubscribe = onValue(gameRef, async (snap) => {
     if (!snap.exists()) {
       console.warn(`Game ${gameID} was removed from the database.`);
       return;
@@ -226,6 +226,10 @@ export function gameUpdates(gameID) {
       if (state.status === "done") {
         alert(`gameUpdates: winner is: ${state.winner}`);
         switchView("waiting");
+        await Promise.all([
+          addGameToHistory(state.player1ID, gameID, state.winner, state.loser),
+          addGameToHistory(state.player2ID, gameID, state.winner, state.loser),
+        ]);
       }
       localGame.currentPlayer =
         state.currentPlayer === localGame.player1.color
@@ -977,5 +981,13 @@ function pushStateToFirebase(game) {
     winner: game.winner ? game.winner.name : null,
     loser: game.loser ? game.loser.name : null,
     status: game.winner ? "done" : "active",
+  });
+}
+
+async function addGameToHistory(playerID, gameID, winner, loser) {
+  const pastGamesRef = ref(database, `players/${playerID}/pastGames`);
+
+  await push(pastGamesRef, {
+    gameID, winner, loser, timestamp: Date.now()
   });
 }

@@ -64,6 +64,34 @@ img {
   height: 200px;
 }
 
+#navBar {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-left: 200px;
+  padding-right: 200px;
+}
+
+#navBar > div {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+#navBar > div > button {
+  font-family: "Titan One", sans-serif;
+  font-size: 1.5rem;
+  margin: 10px;
+  width: 150px;
+  height: 60px;
+  padding: 0px;
+  background-color: black;
+  color: rgb(45, 203, 199);
+  border: 1px solid black;
+  border-radius: 10px;
+}
+
 .signIn,
 .signUp {
   justify-content: center;
