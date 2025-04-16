@@ -729,9 +729,13 @@ export class Game {
       }
 
       const winnerID =
-        data.winner === this.player1.name ? this.player1.name : this.player2.name;
+        data.winner === this.player1.name
+          ? this.player1.name
+          : this.player2.name;
       const loserID =
-        data.loser === this.player1.name ? this.player1.name : this.player2.name;
+        data.loser === this.player1.name
+          ? this.player1.name
+          : this.player2.name;
 
       const winnerRef = ref(database, `players/${winnerID}`);
       const loserRef = ref(database, `players/${loserID}`);
@@ -988,6 +992,9 @@ async function addGameToHistory(playerID, gameID, winner, loser) {
   const pastGamesRef = ref(database, `players/${playerID}/pastGames`);
 
   await push(pastGamesRef, {
-    gameID, winner, loser, timestamp: Date.now()
+    gameID,
+    winner,
+    loser,
+    timestamp: Date.now(),
   });
 }

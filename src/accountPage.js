@@ -3,9 +3,10 @@ import { ref, onValue, push } from "firebase/database";
 
 export function accountView() {
   const nameContainer = document.querySelector(".nameAndID");
-  const gameInfoContainer = document.querySelector(".gamesAndElo");
-  const friendsContainer = document.querySelector(".friends");
+  const friendsContainer = document.querySelector(".friendsList");
   const addFriendsButton = document.querySelector(".addFriends");
+  const eloSection = document.querySelector(".elo");
+  const pastGamesContainer = document.querySelector(".pastGamesContainer");
 
   // Set up the add friend listener (once)
   addFriendsButton.onclick = async () => {
@@ -24,12 +25,9 @@ export function accountView() {
 
     // Clear previous contents
     nameContainer.textContent = "";
-    gameInfoContainer.textContent = "";
+    eloSection.textContent = "";
+    pastGamesContainer.textContent = "";
     friendsContainer.textContent = "";
-
-    nameContainer.style.backgroundColor = "red";
-    gameInfoContainer.style.backgroundColor = "blue";
-    friendsContainer.style.backgroundColor = "yellow";
 
     // Name + ID
     const [playerName, playerNumber] = nameData(playerData);
@@ -42,20 +40,22 @@ export function accountView() {
 
     // Elo and past games
     const [elo, pastGames] = gamesData(playerData);
-    gameInfoContainer.appendChild(
-      createP("ELO: " + elo, "gameInfoContainerElo"),
-    );
+
+    eloSection.textContent = "ELO: " + elo;
 
     if (pastGames && Object.keys(pastGames).length > 0) {
       const ul = document.createElement("ul");
+      ul.classList.add("pastGamesList");
+
       Object.values(pastGames).forEach((game) => {
         const li = document.createElement("li");
         li.textContent = `Game ID: ${game.gameID} | Winner: ${game.winner} | Loser: ${game.loser}`;
         ul.appendChild(li);
       });
-      gameInfoContainer.appendChild(ul);
+
+      pastGamesContainer.appendChild(ul);
     } else {
-      gameInfoContainer.appendChild(createP("No past games", "pastGames"));
+      pastGamesContainer.appendChild(createP("No past games", "pastGames"));
     }
 
     // Friends

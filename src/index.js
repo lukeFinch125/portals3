@@ -12,6 +12,7 @@ import "./gameLogic.js";
 import "./accountPage.js";
 import { accountView } from "./accountPage.js";
 import portalsLogo from "./png/portalsLogo.png";
+import { leaderBoardView } from "./leaderBoardPage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -42,23 +43,23 @@ const signInForm = document.getElementById(`signInForm`);
 const signUpForm = document.getElementById(`signUpForm`);
 const guestLogins = document.getElementsByClassName("guestLogin");
 const signInButton = document.getElementById(`signIn`);
-const accountViewButton = document.getElementById('accountView');
+const accountViewButton = document.getElementById("accountView");
 const matchMakingViewButton = document.getElementById(`matchMaking`);
-const rankingsViewButton = document.getElementById('leaderBoard');
+const rankingsViewButton = document.getElementById("leaderBoard");
 
 //action listeners
 
 accountViewButton.addEventListener("click", () => {
   switchView("account");
-})
+});
 
 matchMakingViewButton.addEventListener("click", () => {
   switchView("waiting");
-})
+});
 
 rankingsViewButton.addEventListener("click", () => {
   switchView("leaderBoard");
-})
+});
 
 resetPassword.addEventListener("click", () => {
   const email = prompt("Enter email to reset password");
@@ -174,7 +175,7 @@ function setupAuthListener() {
         online: true,
         currentGame: null,
         pastGames: null,
-        friends: null
+        friends: null,
       });
 
       onDisconnect(playerRef).update({ online: false });
@@ -222,7 +223,6 @@ export function switchView(view) {
   account.style.display = "none";
   leaderBoard.style.display = "none";
   navBar.style.display = "none";
-  
 
   // Show the selected view
   switch (view) {
@@ -247,6 +247,8 @@ export function switchView(view) {
     case "leaderBoard":
       leaderBoard.style.display = "block";
       navBar.style.display = "flex";
+      leaderBoardView();
+
       break;
     default:
       console.warn("Unknown view:", view);
