@@ -1,0 +1,123 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portals Multiplayer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&family=Titan+One&display=swap" rel="stylesheet">
+<script defer src="main.js"></script></head>
+<body>
+  <div id="PortalsTitle">
+     
+  </div>
+  <div id="navBar" style="display: none;">
+    <div id="account">
+      <button id ="accountView">Account</button>
+    </div>
+    <div id="matchMaking">
+      <button id ="matchingmaking">Match Making</button>
+    </div>
+    <div id="rankings">
+      <button id="leaderBoard">Leader Board</button>
+    </div>
+  </div>
+  <div id = "viewContainer">
+  <!-- Sign in View -->
+     <div class="signIn" style="display: none">
+        <div class="signInContainer">
+          <form id="signInForm">
+            <h1>Sign In</h1>
+            <label for="email">Email: </label>
+            <input type="email" id="signInEmail" required>
+            <label for="password">Password: </label>
+            <input type="password" id="signInPassword" required>
+            <button type="submit">Sign In</button>
+          </form>
+          <button id="signUp">Sign Up</button>
+          <button id="resetPassword">Reset Password</button>
+          <button class="guestLogin">Guest Login</button>
+        </div>
+     </div>
+    <!--Account view-->
+        <div class="account" style="display: none">
+      <div class="accountContainer">
+        <div class="nameAndID"></div>
+        <div class="gamesAndElo">
+            <div class="elo"></div> <!-- where eloSection should go -->
+            <div class="pastGamesContainer"></div> <!-- new container for past games list -->
+        </div>
+        <div class="friends">
+          <button class="addFriends">Add Friends</button>
+          <div class="friendsList">
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--leaderboard View-->
+    <div class="leaderBoard" style="display: none">
+      <div class="leaderBoardContainer">
+        <h1>leaderBoard information</h1>
+        <div class="leaderBoardList"></div>
+      </div>
+    </div>
+    <!-- Sign up View -->
+     <div class="signUp">
+        <div class="signUpContainer">
+          <form id="signUpForm">
+            <h1>Sign Up</h1>
+            <label for="email">Email: </label>
+            <input type="email" id="signUpEmail" required>
+            <label for="password">Password: </label>
+            <input type="password" id="signUpPassword" required>
+            <button type="submit">Sign Up</button>
+          </form>
+          <button id="signIn">Sign In</button>
+          <button class="guestLogin">Guest</button>
+        </div>
+     </div>
+  <!-- Waiting Room View -->
+  <div id="lobbyView" style="display: none;">
+    <div class="lobbyTitle">Lobby</div>
+    <div id="waitingRoom">
+      <div class="buttons">
+        <button id="createGame">Create Game</button>
+        <button id ="joinGame">Join Game</button>
+      </div>
+      <p id="statusMessage"></p>
+    </div>
+  </div>
+
+  <!-- Game Center View (initially hidden) -->
+  <div id="gameCenterView" style="display: none;">
+    <div class="idContainers">
+      <div class="playerIDContainer">
+        <h1>Your ID: </h1>
+        <div class="playerID">
+        </div>
+      </div>
+      <div class="currentTurnContainer">
+        <h1>Current Turn: </h1>
+        <div class="currentTurn">
+        </div>
+      </div>
+    </div>
+    <div class="boards">
+      <div class="topBoard">
+        <div class="topBoardTitle">Top Board</div>
+        <div class="topBoardContainer">topContainer</div>
+      </div>
+      <div class="bottomBoard">
+        <div class="bottomBoardTitle">Bottom Board</div>
+        <div class="bottomBoardContainer">bottomContainer</div>
+      </div>
+    </div>
+    <div class="log"></div>
+  </div>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>
