@@ -150,7 +150,7 @@ export async function createGame() {
     topBoard,
     winner: null,
     loser: null,
-    moveLog: {},
+    pastMoves: [],
   };
 
   const playerRef = ref(database, `players/${playerID}`);
@@ -231,6 +231,7 @@ export async function gameUpdates(gameID) {
           addGameToHistory(state.player2ID, gameID, state.winner, state.loser),
         ]);
       }
+      localGame.pastMoves = state.pastMoves;
       localGame.currentPlayer =
         state.currentPlayer === localGame.player1.color
           ? localGame.player1
@@ -244,6 +245,7 @@ export async function gameUpdates(gameID) {
       localGame.createBoardDisplay(localGame.bottomBoard, bottomBoardDisplay);
       currentTurn.textContent = "Current Turn: " + localGame.currentPlayer.name;
       yourID.textContent = "Your ID: " + playerID;
+      updatePastMoves();
     }
   });
 
@@ -458,9 +460,11 @@ export class Game {
         cell.isMyTurn = isMyTurn;
         cell.square = curSquare;
         cell.style.border = "1px solid #333";
-        cell.style.padding = "10px";
+        cell.style.width = "100%";
+        cell.style.height = "100%";
         cell.style.textAlign = "center";
         cell.style.cursor = "pointer";
+        cell.style.aspectRatio = "1 / 1";
         cell.style.backgroundSize = "contain"; // or "cover" depending on your preference
         cell.style.backgroundRepeat = "no-repeat";
         cell.style.backgroundPosition = "center";
@@ -820,6 +824,8 @@ export class Player {
     let moveSucceeded = false;
     let curGame = selectedPiece.curLocation.getBoard().getGame();
     curGame.checkPortalActivation();
+
+    const pastLocation = selectedPiece.curLocation;
     // Check if the destination is a portal
     if (newLocation.getPortal()) {
       // Prevent kings (pieceNumber 7), knights (pieceNumber 4), and wizards (pieceNumber 5) from going through portals.
@@ -858,12 +864,31 @@ export class Player {
         bottomBoardDisplay,
       );
       curGame.checkKingCapture();
-      await pushStateToFirebase(curGame);
+
+      const move = {
+        type: "move",
+        piece: selectedPiece.printPiece(),
+        from: {
+          x: pastLocation.x,
+          y: pastLocation.y,
+          z: pastLocation.z,
+        },
+        to: {
+          x: selectedPiece.curLocation.x,
+          y: selectedPiece.curLocation.y,
+          z: selectedPiece.curLocation.z,
+        },
+        timestamp: Date.now(),
+      };
+
+      await pushStateToFirebase(curGame, move);
     }
   }
 
   async captureAction(selectedPiece, newLocation) {
     let curGame = selectedPiece.curLocation.getBoard().getGame();
+    let pastLocation = selectedPiece.curLocation;
+    let pieceCaptured = newLocation.getPiece();
     if (newLocation.getPortal()) {
       curGame.checkPortalActivation();
       // Prevent kings, knights, and wizards from capturing through portals.
@@ -876,7 +901,6 @@ export class Player {
       this.capturePortalAction(selectedPiece, newLocation);
     } else {
       selectedPiece.curLocation.pieceExit();
-      let pieceCaptured = newLocation.getPiece();
       pieceCaptured.pieceCaptured();
       selectedPiece.curLocation = newLocation;
       newLocation.pieceEntry(selectedPiece);
@@ -897,7 +921,25 @@ export class Player {
       bottomBoardDisplay,
     );
     curGame.checkKingCapture();
-    await pushStateToFirebase(curGame);
+
+    const capture = {
+      type: "capture",
+      piece: selectedPiece.printPiece(),
+      from: {
+        x: pastLocation.x,
+        y: pastLocation.y,
+        z: pastLocation.z,
+      },
+      to: {
+        x: newLocation.x,
+        y: newLocation.y,
+        z: newLocation.z,
+      },
+      captured: pieceCaptured.getInfo(),
+      timestamp: Date.now(),
+    };
+
+    await pushStateToFirebase(curGame, capture);
   }
 
   async movePortalAction(selectedPiece, newLocation) {
@@ -961,10 +1003,11 @@ export class Player {
   }
 }
 
-function pushStateToFirebase(game) {
+async function pushStateToFirebase(game, move) {
   console.log("pushing state to fire base");
   const gameRef = ref(database, `activeGames/${game.gameID}`);
-  return update(gameRef, {
+  alert("Returning rest of info");
+  await update(gameRef, {
     bottomBoard: game.bottomBoard.boardArray.map((row) =>
       row.map((sq) => ({
         pieceNumber: sq.getPiece() ? sq.getPiece().pieceNumber : 0,
@@ -986,6 +1029,9 @@ function pushStateToFirebase(game) {
     loser: game.loser ? game.loser.name : null,
     status: game.winner ? "done" : "active",
   });
+  const pastMovesRef = ref(database, `activeGames/${game.gameID}/pastMoves`);
+  await push(pastMovesRef, move);
+  alert("Pushed move to pastMovesref");
 }
 
 async function addGameToHistory(playerID, gameID, winner, loser) {
@@ -997,4 +1043,32 @@ async function addGameToHistory(playerID, gameID, winner, loser) {
     loser,
     timestamp: Date.now(),
   });
+}
+
+function updatePastMoves() {
+  const pastMovesContainer = document.querySelector(".pastMoves");
+  if (!curGame || !curGame.pastMoves) return;
+
+  // Clear old content
+  pastMovesContainer.innerHTML = "<h3>Past Moves:</h3>";
+
+  // Firebase pastMoves is an object with auto-generated keys, so convert to array
+  const movesArray = Object.values(curGame.pastMoves || {});
+
+  movesArray
+    .sort((a, b) => a.timestamp - b.timestamp) // Ensure chronological order
+    .forEach((move, index) => {
+      const entry = document.createElement("div");
+      entry.style.marginBottom = "6px";
+
+      if (move.type === "move") {
+        entry.textContent = `#${index + 1} ${move.piece} moved from (${move.from.x},${move.from.y},${move.from.z}) to (${move.to.x},${move.to.y},${move.to.z})`;
+      } else if (move.type === "capture") {
+        entry.textContent = `#${index + 1} ${move.piece} captured ${move.captured.piece} from (${move.from.x},${move.from.y},${move.from.z}) to (${move.to.x},${move.to.y},${move.to.z})`;
+      } else {
+        entry.textContent = `#${index + 1} Unknown move type`;
+      }
+
+      pastMovesContainer.appendChild(entry);
+    });
 }

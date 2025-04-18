@@ -7,17 +7,40 @@
   color: rgb(45, 203, 199);
 }
 
+.gameContainer {
+  width: 95vw;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  height: 50vh;
+}
+
 .boards {
-  display: flex;
-  width: 100vw;
+  grid-column: 1 / 7;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   justify-content: center;
-  gap: 80px;
+}
+
+.pastMoves {
+  grid-column: 7 / 9;
+}
+
+.topBoard,
+.bottomBoard {
+  padding: 10px;
+}
+
+.topBoard {
+  grid-column: 1 / 2;
+}
+
+.bottomBoard {
+  grid-column: 2 / 3;
 }
 
 .topBoardContainer,
 .bottomBoardContainer {
-  width: 500px;
-  height: 500px;
+  width: 80%;
 }
 
 @keyframes rainbow {

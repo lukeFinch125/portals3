@@ -102,7 +102,6 @@ signUpForm.addEventListener("submit", (event) => {
 for (let i = 0; i < guestLogins.length; i++) {
   guestLogins[i].addEventListener("click", () => {
     anonymousSignIn();
-    alert("sign in as guest");
     switchView("waiting");
   });
 }
@@ -112,7 +111,6 @@ function handleSignInDataBase(email, password) {
   signInWithEmailAndPassword(auth, email, password)
     .then((userCredential) => {
       currentUser = userCredential.user;
-      alert("Successful signIn");
       switchView("waiting");
       setupAuthListener();
     })

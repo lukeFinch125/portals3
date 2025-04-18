@@ -19,11 +19,7 @@ export class Piece {
   }
 
   printPiece() {
-    if (this.color === 0) {
-      return chalk.blue(this.pieceNumber);
-    } else {
-      return chalk.red(this.pieceNumber);
-    }
+    return this.color + " " + this.pieceNumber;
   }
 
   getInfoForBoardUI() {
